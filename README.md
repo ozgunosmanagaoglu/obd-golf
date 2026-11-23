@@ -17,6 +17,8 @@ VW Golf Mk6 (1.4 TSI, DSG) için Android OBD göstergesi. Vgate iCar Pro BT 3.0 
 
 **Garaj** sekmesi arabanın fotoğrafını, devire göre çalışan 4 silindirli motor animasyonunu ve LED devir barını gösterir. Demo modunda "Basılı tut · Gaz" düğmesiyle motoru boşta kökleyebilirsin.
 
+**Geçmiş** sekmesi her sürüşü kendiliğinden kaydeder: süre, mesafe, ortalama ve en yüksek hız, en yüksek devir, rölantide geçen süre, en yüksek su sıcaklığı, en düşük akü voltajı ve hız, devir ve sıcaklık grafikleri. Motor 30 saniye kapalı kalınca sürüş biter, 30 saniyeden kısa kayıtlar tutulmaz. Kayıtlar sadece telefonda durur.
+
 Telefon yatay çevrilince ana gösterge araç ekranı düzenine geçer.
 
 ## Okunan veriler

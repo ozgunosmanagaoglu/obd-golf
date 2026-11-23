@@ -45,6 +45,7 @@ import app.obdgolf.ui.ConnectScreen
 import app.obdgolf.ui.DashboardScreen
 import app.obdgolf.ui.DetailsScreen
 import app.obdgolf.ui.GarageScreen
+import app.obdgolf.ui.HistoryScreen
 import app.obdgolf.ui.ObdTheme
 
 class MainActivity : ComponentActivity() {
@@ -73,7 +74,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String) { Garage("Garaj"), Dashboard("Gösterge"), Details("Veriler"), Connect("Bağlantı") }
+private enum class Tab(val label: String) { Garage("Garaj"), Dashboard("Gösterge"), Details("Veriler"), History("Geçmiş"), Connect("Bağlantı") }
 
 @Composable
 private fun App(vm: ObdViewModel) {
@@ -82,6 +83,7 @@ private fun App(vm: ObdViewModel) {
     val devices by vm.devices.collectAsState()
     val auto by vm.autoConnect.collectAsState()
     val demo by vm.demo.collectAsState()
+    val drives by vm.drives.collectAsState()
     var tab by rememberSaveable { mutableStateOf(Tab.Garage) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -96,6 +98,7 @@ private fun App(vm: ObdViewModel) {
                     Tab.Garage -> GarageScreen(data, link, demo, onGas = vm::setGas) { tab = Tab.Connect }
                     Tab.Dashboard -> DashboardScreen(data, link) { tab = Tab.Connect }
                     Tab.Details -> DetailsScreen(data)
+                    Tab.History -> HistoryScreen(drives, onDelete = vm::deleteDrive)
                     Tab.Connect -> ConnectScreen(
                         link = link,
                         bluetoothReady = vm.bluetoothReady,
@@ -111,9 +114,9 @@ private fun App(vm: ObdViewModel) {
                 }
             }
             Row(
-                Modifier.padding(horizontal = 20.dp, vertical = 12.dp).fillMaxWidth()
+                Modifier.padding(horizontal = 12.dp, vertical = 10.dp).fillMaxWidth()
                     .clip(RoundedCornerShape(22.dp)).background(C.Card).padding(6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Tab.entries.forEach { t ->
                     val selected = t == tab
@@ -121,9 +124,10 @@ private fun App(vm: ObdViewModel) {
                         onClick = { tab = t },
                         modifier = Modifier.weight(1f).heightIn(min = 44.dp),
                         shape = RoundedCornerShape(16.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp),
                         colors = ButtonDefaults.textButtonColors(containerColor = if (selected) C.Red else Color.Transparent),
                     ) {
-                        Text(t.label, color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = 13.sp, maxLines = 1,
+                        Text(t.label, color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = 12.sp, maxLines = 1,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
                     }
                 }
