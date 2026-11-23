@@ -15,6 +15,8 @@ VW Golf Mk6 (1.4 TSI, DSG) için Android OBD göstergesi. Vgate iCar Pro BT 3.0 
 3. Uygulamada **Bağlantı** sekmesinden adaptörü seç. Sonraki açılışlarda kendisi bağlanır.
 4. Araba yokken denemek için **Demo modu**nu aç.
 
+**Garaj** sekmesi arabanın fotoğrafını, devire göre çalışan 4 silindirli motor animasyonunu ve LED devir barını gösterir. Demo modunda "Basılı tut · Gaz" düğmesiyle motoru boşta kökleyebilirsin.
+
 Telefon yatay çevrilince ana gösterge araç ekranı düzenine geçer.
 
 ## Okunan veriler
@@ -35,3 +37,7 @@ Standart OBD (mod 01): devir, hız, su sıcaklığı, emme sıcaklığı, dış 
 3. VW'ye özel veriler (yağ ve DSG sıcaklığı, turbo, klima)
 4. Araca kalıcı ekran
 5. Ayarlar / kodlama (örneğin konfor sinyali yanıp sönme sayısı), önce yedekleme ile
+
+## Lisanslar
+
+Sora yazı tipi SIL Open Font License 1.1 ile dağıtılır (Google Fonts).

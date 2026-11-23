@@ -44,6 +44,7 @@ import app.obdgolf.ui.CarScreen
 import app.obdgolf.ui.ConnectScreen
 import app.obdgolf.ui.DashboardScreen
 import app.obdgolf.ui.DetailsScreen
+import app.obdgolf.ui.GarageScreen
 import app.obdgolf.ui.ObdTheme
 
 class MainActivity : ComponentActivity() {
@@ -72,7 +73,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String) { Dashboard("Gösterge"), Details("Tüm veriler"), Connect("Bağlantı") }
+private enum class Tab(val label: String) { Garage("Garaj"), Dashboard("Gösterge"), Details("Veriler"), Connect("Bağlantı") }
 
 @Composable
 private fun App(vm: ObdViewModel) {
@@ -81,17 +82,18 @@ private fun App(vm: ObdViewModel) {
     val devices by vm.devices.collectAsState()
     val auto by vm.autoConnect.collectAsState()
     val demo by vm.demo.collectAsState()
-    var tab by rememberSaveable { mutableStateOf(Tab.Dashboard) }
+    var tab by rememberSaveable { mutableStateOf(Tab.Garage) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Box(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding().navigationBarsPadding()) {
-        if (landscape && tab == Tab.Dashboard) {
+        if (landscape && (tab == Tab.Dashboard || tab == Tab.Garage)) {
             CarScreen(data, link) { tab = Tab.Connect }
             return@Box
         }
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
                 when (tab) {
+                    Tab.Garage -> GarageScreen(data, link, demo, onGas = vm::setGas) { tab = Tab.Connect }
                     Tab.Dashboard -> DashboardScreen(data, link) { tab = Tab.Connect }
                     Tab.Details -> DetailsScreen(data)
                     Tab.Connect -> ConnectScreen(
@@ -100,11 +102,11 @@ private fun App(vm: ObdViewModel) {
                         devices = devices,
                         autoConnect = auto,
                         demo = demo,
-                        onConnect = { vm.connect(it); tab = Tab.Dashboard },
+                        onConnect = { vm.connect(it); tab = Tab.Garage },
                         onDisconnect = vm::disconnect,
                         onRefresh = vm::refreshDevices,
                         onAutoConnect = vm::setAutoConnect,
-                        onDemo = { vm.setDemo(it); if (it) tab = Tab.Dashboard },
+                        onDemo = { vm.setDemo(it); if (it) tab = Tab.Garage },
                     )
                 }
             }
@@ -121,7 +123,7 @@ private fun App(vm: ObdViewModel) {
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.textButtonColors(containerColor = if (selected) C.Red else Color.Transparent),
                     ) {
-                        Text(t.label, color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = 14.sp,
+                        Text(t.label, color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = 13.sp, maxLines = 1,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
                     }
                 }
