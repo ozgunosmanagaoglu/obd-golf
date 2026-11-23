@@ -8,6 +8,8 @@ import app.obdgolf.bt.BluetoothConnector
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
 import app.obdgolf.core.DemoElmIo
+import app.obdgolf.core.Drive
+import app.obdgolf.core.DriveRecorder
 import app.obdgolf.core.ElmIo
 import app.obdgolf.core.ObdSession
 import kotlinx.coroutines.CancellationException
@@ -43,6 +45,27 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _demo = MutableStateFlow(prefs.getBoolean("demo", false))
     val demo: StateFlow<Boolean> = _demo.asStateFlow()
+
+    private val store = DriveStore(app)
+    private var recorder: DriveRecorder? = null
+
+    private val _drives = MutableStateFlow<List<Drive>>(emptyList())
+    val drives: StateFlow<List<Drive>> = _drives.asStateFlow()
+
+    init {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { _drives.value = store.all() }
+    }
+
+    fun deleteDrive(d: Drive) {
+        store.delete(d.startMs)
+        _drives.value = _drives.value.filterNot { it.startMs == d.startMs }
+    }
+
+    private fun saveDrive(d: Drive?) {
+        if (d == null) return
+        runCatching { store.save(d) }
+        _drives.value = (listOf(d) + _drives.value).sortedByDescending { it.startMs }
+    }
 
     private var job: Job? = null
     private var session: ObdSession? = null
@@ -89,6 +112,8 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun disconnect() {
+        saveDrive(recorder?.finish())
+        recorder = null
         job?.cancel()
         job = null
         session?.close()
@@ -101,6 +126,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun start(name: String, open: suspend () -> ElmIo) {
         disconnect()
+        recorder = DriveRecorder(demo = name == "Demo")
         job = viewModelScope.launch {
             var attempt = 0
             while (true) {
@@ -110,12 +136,16 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     s.initialize()
                     _link.value = LinkState.Connected(name, s.adapterVersion)
                     attempt = 0
-                    s.poll().collect { _data.value = it }
+                    s.poll().collect {
+                        _data.value = it
+                        saveDrive(recorder?.feed(it, System.currentTimeMillis()))
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     session?.close()
                     session = null
+                    saveDrive(recorder?.finish())
                     _link.value = LinkState.Failed(e.message ?: "Bağlantı hatası")
                     // Car off or out of range: keep retrying quietly, slower each time.
                     attempt++
