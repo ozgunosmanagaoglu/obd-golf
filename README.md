@@ -15,7 +15,7 @@ VW Golf Mk6 (1.4 TSI, DSG) için Android OBD göstergesi. Vgate iCar Pro BT 3.0 
 3. Uygulamada **Bağlantı** sekmesinden adaptörü seç. Sonraki açılışlarda kendisi bağlanır.
 4. Araba yokken denemek için **Demo modu**nu aç.
 
-**Garaj** sekmesi arabanın fotoğrafını, devire göre çalışan 4 silindirli motor animasyonunu ve LED devir barını gösterir. Demo modunda "Basılı tut · Gaz" düğmesiyle motoru boşta kökleyebilirsin.
+**Garaj** sekmesi 3D bir Golf gösterir: parmakla döndürülür, kaput, kapılar ve bagaj dokununca açılır. Motora dokununca kaput açılır ve motor ile turbo görünür. Arabaya bağlıyken motor gerçek devirle çalışır, bağlı değilken "Basılı tut · Gaz" ile simüle edilir. Sayfa `design/garage3d.html` içinde, uygulamadaki internetsiz kopyası `python3 tools/build_garage3d.py` ile üretilir.
 
 **Geçmiş** sekmesi her sürüşü kendiliğinden kaydeder: süre, mesafe, ortalama ve en yüksek hız, en yüksek devir, rölantide geçen süre, en yüksek su sıcaklığı, en düşük akü voltajı ve hız, devir ve sıcaklık grafikleri. Motor 30 saniye kapalı kalınca sürüş biter, 30 saniyeden kısa kayıtlar tutulmaz. Kayıtlar sadece telefonda durur.
 
@@ -42,4 +42,4 @@ Standart OBD (mod 01): devir, hız, su sıcaklığı, emme sıcaklığı, dış 
 
 ## Lisanslar
 
-Sora yazı tipi SIL Open Font License 1.1 ile dağıtılır (Google Fonts).
+Sora yazı tipi SIL Open Font License 1.1 ile dağıtılır (Google Fonts). three.js MIT lisanslıdır (`app/src/main/assets/garage3d/THREE_LICENSE.txt`).

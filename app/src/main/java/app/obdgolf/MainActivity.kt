@@ -44,7 +44,7 @@ import app.obdgolf.ui.CarScreen
 import app.obdgolf.ui.ConnectScreen
 import app.obdgolf.ui.DashboardScreen
 import app.obdgolf.ui.DetailsScreen
-import app.obdgolf.ui.GarageScreen
+import app.obdgolf.ui.Garage3DScreen
 import app.obdgolf.ui.HistoryScreen
 import app.obdgolf.ui.ObdTheme
 
@@ -88,14 +88,14 @@ private fun App(vm: ObdViewModel) {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Box(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding().navigationBarsPadding()) {
-        if (landscape && (tab == Tab.Dashboard || tab == Tab.Garage)) {
+        if (landscape && tab == Tab.Dashboard) {
             CarScreen(data, link) { tab = Tab.Connect }
             return@Box
         }
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
                 when (tab) {
-                    Tab.Garage -> GarageScreen(data, link, demo, onGas = vm::setGas) { tab = Tab.Connect }
+                    Tab.Garage -> Garage3DScreen(data, link, demo)
                     Tab.Dashboard -> DashboardScreen(data, link) { tab = Tab.Connect }
                     Tab.Details -> DetailsScreen(data)
                     Tab.History -> HistoryScreen(drives, onDelete = vm::deleteDrive)

@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>*{box-sizing:border-box}body{margin:0}</style>
+</head>
+<body>
+<title>Golf 3D Garaj</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+@font-face{font-family:Sora;font-weight:200;src:url(fonts/sora_extralight.ttf)}
+@font-face{font-family:Sora;font-weight:300 400;src:url(fonts/sora_light.ttf)}
+@font-face{font-family:Sora;font-weight:600;src:url(fonts/sora_semibold.ttf)}
+</style>
+<style>
+  /* Layout: full-screen 3D garage, title top-left, controls in a bottom dock. Single dark look on purpose. */
+  :root {
+    --bg: #050608;
+    --fg: #f4f5f7;
+    --muted: #9a9ea6;
+    --glass: rgba(255,255,255,0.06);
+    --line: rgba(255,255,255,0.10);
+    --red: #e3001b;
+    --font: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font); overflow: hidden; -webkit-user-select: none; user-select: none; }
+  #scene { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+  .top {
+    position: fixed; left: 0; right: 0; top: 0; pointer-events: none;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 18px);
+    padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px));
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  }
+  .eyebrow { font-size: 11px; letter-spacing: 0.28em; color: var(--muted); }
+  .name { font-size: clamp(20px, 5.5vw, 26px); font-weight: 300; letter-spacing: -0.01em; margin-top: 2px; }
+  .name b { font-weight: 600; }
+  .hud { text-align: right; }
+  .rpm { font-size: 40px; font-weight: 200; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .rpm.hot { color: #ff4d5e; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .dock {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 640px; }
+  button {
+    font: 400 13px var(--font); letter-spacing: 0.08em; color: var(--fg);
+    min-height: 44px; padding: 0 16px; border-radius: 22px; cursor: pointer;
+    background: var(--glass); border: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    transition: background .2s, border-color .2s;
+  }
+  button[aria-pressed="true"] { background: rgba(227,0,27,0.22); border-color: rgba(227,0,27,0.7); }
+  button:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  #gas { min-width: 180px; min-height: 52px; border-radius: 26px; font-weight: 600; letter-spacing: 0.22em; background: linear-gradient(90deg, var(--red) var(--p, 0%), var(--glass) var(--p, 0%)); touch-action: none; }
+  #gas[hidden] { display: none !important; }
+  .tag {
+    position: fixed; pointer-events: none; transform: translate(-50%, -120%);
+    font-size: 11px; letter-spacing: 0.16em; padding: 6px 10px; border-radius: 12px;
+    background: rgba(5,6,8,0.75); border: 1px solid var(--line); white-space: nowrap; opacity: 0; transition: opacity .3s;
+  }
+  .tag.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+</style>
+
+<canvas id="scene" aria-label="Döndürülebilir 3D gri Golf, garajda"></canvas>
+
+<div class="top">
+  <div>
+    <div class="eyebrow">GARAJ</div>
+    <div class="name">Golf <b>VI</b></div>
+    <div class="hint" style="margin-top:2px">1.4 TSI · DSG · 122 HP</div>
+  </div>
+  <div class="hud">
+    <div class="rpm" id="rpm">0</div>
+    <div class="eyebrow" style="margin-top:4px">DEVİR / DK</div>
+    <div class="hint" id="hint">Sürükle: döndür · Parçaya dokun: aç / kapat</div>
+  </div>
+</div>
+
+<div class="tag" id="tagTurbo">TURBO · <span id="boost">0.0</span> bar</div>
+<div class="tag" id="tagEngine">EA111 · 4 SİLİNDİR</div>
+
+<div class="dock">
+  <button id="gas" type="button" hidden>BASILI TUT · GAZ</button>
+  <div class="row">
+    <button id="bHood" type="button" aria-pressed="false">Kaput</button>
+    <button id="bDoors" type="button" aria-pressed="false">Kapılar</button>
+    <button id="bHatch" type="button" aria-pressed="false">Bagaj</button>
+    <button id="bSpin" type="button" aria-pressed="true">Döndür</button>
+    <button id="bEngine" type="button" aria-pressed="false">Motoru çalıştır</button>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./three.module.min.js",
+  "three/addons/": "./addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050608);
+scene.fog = new THREE.Fog(0x050608, 9, 22);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+camera.position.set(5.2, 2.1, 5.4);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0.7, 0);
+controls.enableDamping = true;
+controls.enablePan = false;
+controls.minDistance = 3.6;
+controls.maxDistance = 10;
+controls.maxPolarAngle = 1.48;
+controls.minPolarAngle = 0.35;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.8;
+
+// ---------- Garage ----------
+const floor = new THREE.Mesh(new THREE.CircleGeometry(14, 96), new THREE.MeshStandardMaterial({ color: 0x0c0d10, roughness: 0.32, metalness: 0.4 }));
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+const turntable = new THREE.Mesh(new THREE.CylinderGeometry(3.0, 3.05, 0.06, 96), new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: 0.25, metalness: 0.6 }));
+turntable.position.y = 0.03; turntable.receiveShadow = true; scene.add(turntable);
+const ringMat = new THREE.MeshBasicMaterial({ color: 0xe3001b });
+const ring = new THREE.Mesh(new THREE.TorusGeometry(3.04, 0.012, 8, 160), ringMat);
+ring.rotation.x = Math.PI / 2; ring.position.y = 0.062; scene.add(ring);
+// Ceiling light strips.
+for (let i = -2; i <= 2; i++) {
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 6), new THREE.MeshBasicMaterial({ color: 0xf2f4f8 }));
+  strip.position.set(i * 1.3, 4.2, 0); scene.add(strip);
+}
+// Back wall with red neon line.
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(30, 8), new THREE.MeshStandardMaterial({ color: 0x0a0b0e, roughness: 0.9 }));
+wall.position.set(0, 4, -8); scene.add(wall);
+const neon = new THREE.Mesh(new THREE.BoxGeometry(14, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0xe3001b }));
+neon.position.set(0, 1.4, -7.9); scene.add(neon);
+
+scene.add(new THREE.HemisphereLight(0xdfe6f0, 0x0a0a0c, 0.35));
+const key = new THREE.DirectionalLight(0xffffff, 2.2);
+key.position.set(3, 7, 4); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 1, far: 20 });
+key.shadow.bias = -0.0004;
+scene.add(key);
+const redFill = new THREE.PointLight(0xe3001b, 6, 9, 2); redFill.position.set(-3.5, 1.2, -3); scene.add(redFill);
+const rim = new THREE.PointLight(0x8fb4ff, 3, 10, 2); rim.position.set(4, 1.5, -4); scene.add(rim);
+
+// ---------- Materials ----------
+const paint = new THREE.MeshPhysicalMaterial({ color: 0x6f747b, metalness: 0.75, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.06 });
+const glass = new THREE.MeshPhysicalMaterial({ color: 0x0b0f14, metalness: 0.2, roughness: 0.05, transparent: true, opacity: 0.72 });
+const black = new THREE.MeshStandardMaterial({ color: 0x0b0b0c, roughness: 0.55 });
+const trim = new THREE.MeshStandardMaterial({ color: 0x18191c, roughness: 0.6 });
+const interior = new THREE.MeshStandardMaterial({ color: 0x1c1d21, roughness: 0.9 });
+const chrome = new THREE.MeshStandardMaterial({ color: 0xd9dde2, metalness: 1, roughness: 0.15 });
+const alloy = new THREE.MeshStandardMaterial({ color: 0xb7bcc3, metalness: 0.9, roughness: 0.28 });
+const tyre = new THREE.MeshStandardMaterial({ color: 0x0d0d0e, roughness: 0.85 });
+const engineMetal = new THREE.MeshStandardMaterial({ color: 0x3a3d43, metalness: 0.7, roughness: 0.45 });
+const camCover = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, metalness: 0.6, roughness: 0.35 });
+const redCoil = new THREE.MeshStandardMaterial({ color: 0xc4121f, roughness: 0.4 });
+const turboMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.95, roughness: 0.3, emissive: new THREE.Color(0xff4a10), emissiveIntensity: 0 });
+const headMat = new THREE.MeshStandardMaterial({ color: 0xe9eef5, emissive: 0xdfe8ff, emissiveIntensity: 0.6, roughness: 0.1 });
+const tailMat = new THREE.MeshStandardMaterial({ color: 0x7a0d18, emissive: 0xff1a2e, emissiveIntensity: 0.4, roughness: 0.2 });
+
+const car = new THREE.Group();
+scene.add(car);
+const clickable = [];
+
+function extrude(points, depth, mat, z, holes) {
+  const s = new THREE.Shape();
+  points.forEach((p, i) => (i ? s.lineTo(p[0], p[1]) : s.moveTo(p[0], p[1])));
+  if (holes) holes(s);
+  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 3, curveSegments: 24 });
+  g.translate(0, 0, -depth / 2);
+  const m = new THREE.Mesh(g, mat);
+  m.position.z = z || 0;
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function extrudeShape(shape, depth, mat, z) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 3, curveSegments: 28 });
+  g.translate(0, 0, -depth / 2);
+  const m = new THREE.Mesh(g, mat); m.position.z = z || 0; m.castShadow = true; m.receiveShadow = true; return m;
+}
+
+// Core tub: dark, so open doors, bay and boot show an interior. Wheel arches cut into the bottom edge.
+{
+  const s = new THREE.Shape();
+  s.moveTo(-2.1, 0.33); s.lineTo(-2.08, 0.6); s.lineTo(-1.0, 0.6); s.lineTo(-0.95, 0.97); s.lineTo(2.08, 0.96); s.lineTo(2.12, 0.45); s.lineTo(2.0, 0.33);
+  s.lineTo(1.69, 0.33); s.absarc(1.29, 0.31, 0.4, 0, Math.PI, false);
+  s.lineTo(-0.91, 0.33); s.absarc(-1.31, 0.31, 0.4, 0, Math.PI, false);
+  s.closePath();
+  car.add(extrudeShape(s, 1.6, interior, 0));
+}
+// Seats (visible with doors open).
+for (const z of [0.38, -0.38]) for (const x of [-0.25, 0.75]) {
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.48), trim); seat.position.set(x, 1.0, z); car.add(seat);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.42, 0.48), trim); back.position.set(x + 0.25, 1.2, z); back.rotation.z = -0.15; car.add(back);
+}
+
+// Greenhouse (glass cabin) and roof.
+car.add(extrude([[-0.95, 0.97], [-0.25, 1.43], [1.38, 1.43], [2.02, 0.98]], 1.5, glass, 0));
+const roof = extrude([[-0.22, 1.42], [1.36, 1.42], [1.36, 1.47], [-0.2, 1.47]], 1.52, paint, 0); car.add(roof);
+// A-pillars and C-pillars in paint.
+for (const side of [1, -1]) {
+  const a = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.06, 0.06), paint);
+  a.position.set(-0.6, 1.2, side * 0.74); a.rotation.z = Math.atan2(0.46, 0.7); car.add(a);
+}
+
+// Front fenders.
+for (const side of [1, -1]) {
+  const s = new THREE.Shape();
+  s.moveTo(-0.95, 0.98); s.lineTo(-0.95, 0.33);
+  s.lineTo(-0.91, 0.33); s.absarc(-1.31, 0.31, 0.4, 0, Math.PI, false);
+  s.lineTo(-2.1, 0.33); s.lineTo(-2.13, 0.62); s.lineTo(-2.05, 0.78); s.closePath();
+  car.add(extrudeShape(s, 0.06, paint, side * 0.86));
+}
+// Rear quarters.
+for (const side of [1, -1]) {
+  const s = new THREE.Shape();
+  s.moveTo(1.28, 0.71); s.lineTo(1.28, 1.4); s.lineTo(1.40, 1.44); s.lineTo(2.06, 0.98); s.lineTo(2.12, 0.45); s.lineTo(2.0, 0.33); s.lineTo(1.69, 0.33);
+  s.absarc(1.29, 0.31, 0.4, 0, Math.PI / 2, false); s.closePath();
+  car.add(extrudeShape(s, 0.06, paint, side * 0.86));
+}
+// Front fascia, grille, lights.
+const fascia = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.46, 1.74), paint); fascia.position.set(-2.08, 0.55, 0); fascia.castShadow = true; car.add(fascia);
+const grille = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.8), black); grille.position.set(-2.14, 0.68, 0); car.add(grille);
+const grilleBar = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.015, 0.8), chrome); grilleBar.position.set(-2.165, 0.72, 0); car.add(grilleBar);
+const lower = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 1.1), black); lower.position.set(-2.14, 0.42, 0); car.add(lower);
+for (const side of [1, -1]) {
+  const hl = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.11, 0.36), headMat); hl.position.set(-2.09, 0.69, side * 0.6); hl.rotation.y = side * 0.12; car.add(hl);
+  const fog = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 20), headMat); fog.rotation.z = Math.PI / 2; fog.position.set(-2.15, 0.42, side * 0.62); car.add(fog);
+}
+// Rear bumper and tail lights.
+const rbump = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.3, 1.76), paint); rbump.position.set(2.08, 0.48, 0); rbump.castShadow = true; car.add(rbump);
+const diff = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 1.2), black); diff.position.set(2.16, 0.37, 0); car.add(diff);
+const tails = [];
+for (const side of [1, -1]) {
+  const tl = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.34), tailMat); tl.position.set(2.1, 0.9, side * 0.68); car.add(tl); tails.push(tl);
+}
+const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.12, 16), chrome); pipe.rotation.z = Math.PI / 2; pipe.position.set(2.16, 0.36, -0.5); car.add(pipe);
+
+// Mirrors.
+for (const side of [1, -1]) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.11, 0.16), paint); m.position.set(-0.78, 1.04, side * 0.98); car.add(m);
+}
+
+// ---------- Opening parts ----------
+const parts = {};
+function hinge(name, pivot, axis, sign, max) {
+  const g = new THREE.Group(); g.position.copy(pivot); car.add(g);
+  parts[name] = { g, axis, sign, max, open: false, t: 0 };
+  return g;
+}
+function tagClick(obj, name) { obj.traverse(o => { if (o.isMesh) { o.userData.part = name; clickable.push(o); } }); }
+
+// Hood: hinged at the windscreen, lifts at the front.
+{
+  const g = hinge('hood', new THREE.Vector3(-0.95, 0.99, 0), 'z', -1, 1.05);
+  const inner = new THREE.Group(); inner.rotation.z = Math.atan2(0.2, 1.1); g.add(inner);
+  const hood = new THREE.Mesh(new THREE.BoxGeometry(1.13, 0.035, 1.68), paint); hood.position.x = -0.56; hood.castShadow = true; inner.add(hood);
+  const under = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.01, 1.5), trim); under.position.set(-0.55, -0.025, 0); inner.add(under);
+  tagClick(g, 'hood');
+}
+// Doors: hinged at the front edge, swing out.
+function door(name, x0, x1, side, glassPts, lowerPts) {
+  const g = hinge(name, new THREE.Vector3(x0, 0, side * 0.9), 'y', -side, 1.1);
+  const lowerM = extrude(lowerPts.map(p => [p[0] - x0, p[1]]), 0.05, paint, 0); g.add(lowerM);
+  const glassM = extrude(glassPts.map(p => [p[0] - x0, p[1]]), 0.02, glass, 0); g.add(glassM);
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.025, 0.03), chrome); handle.position.set(x1 - x0 - 0.22, 0.86, side * 0.035); g.add(handle);
+  tagClick(g, name);
+}
+for (const side of [1, -1]) {
+  door(side > 0 ? 'doorFL' : 'doorFR', -0.95, 0.28, side,
+    [[-0.88, 0.99], [0.26, 0.99], [0.26, 1.39], [-0.25, 1.39]],
+    [[-0.95, 0.34], [0.28, 0.34], [0.28, 0.98], [-0.95, 0.98]]);
+  door(side > 0 ? 'doorRL' : 'doorRR', 0.3, 1.27, side,
+    [[0.33, 0.99], [1.2, 0.99], [1.06, 1.38], [0.33, 1.38]],
+    [[0.3, 0.34], [0.9, 0.34], [1.27, 0.71], [1.27, 0.98], [0.3, 0.98]]);
+}
+// Hatch: hinged at the roof, lifts up.
+{
+  const g = hinge('hatch', new THREE.Vector3(1.40, 1.45, 0), 'z', 1, 1.25);
+  const hatch = extrude([[0, 0], [0.06, 0.01], [0.74, -0.47], [0.75, -0.8], [0.68, -0.8], [0.66, -0.5], [0.0, -0.05]], 1.6, paint, 0);
+  g.add(hatch);
+  const rw = extrude([[0.07, -0.03], [0.6, -0.4], [0.62, -0.42], [0.1, -0.06]], 1.3, glass, 0); rw.position.x = 0.01; g.add(rw);
+  tagClick(g, 'hatch');
+}
+
+// ---------- Wheels ----------
+const wheels = [];
+function wheel(x, z) {
+  const w = new THREE.Group(); w.position.set(x, 0.31, z);
+  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.21, 40), tyre); t.rotation.x = Math.PI / 2; t.castShadow = true; w.add(t);
+  const spin = new THREE.Group(); w.add(spin);
+  const out = Math.sign(z);
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.02, 40), alloy); rim.rotation.x = Math.PI / 2; rim.position.z = out * 0.1; spin.add(rim);
+  for (let i = 0; i < 5; i++) {
+    const sp = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.19, 0.02), chrome);
+    sp.position.z = out * 0.115; sp.rotation.z = i * Math.PI * 2 / 5; sp.translateY(0.095); spin.add(sp);
+  }
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 20), trim); hub.rotation.x = Math.PI / 2; hub.position.z = out * 0.12; spin.add(hub);
+  car.add(w); wheels.push(spin);
+}
+wheel(-1.31, 0.78); wheel(-1.31, -0.78); wheel(1.29, 0.78); wheel(1.29, -0.78);
+
+// ---------- Engine bay ----------
+const engine = new THREE.Group(); car.add(engine);
+const block = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.66), engineMetal); block.position.set(-1.55, 0.74, 0.05); block.castShadow = true; engine.add(block);
+const cover = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.06, 0.6), camCover); cover.position.set(-1.55, 0.9, 0.05); engine.add(cover);
+for (let i = 0; i < 4; i++) {
+  const c = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.06, 12), redCoil); c.position.set(-1.55, 0.95, -0.2 + i * 0.16 + 0.05); engine.add(c);
+}
+const radiator = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 1.3), black); radiator.position.set(-1.98, 0.75, 0); engine.add(radiator);
+const battery = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.17, 0.26), black); battery.position.set(-1.35, 0.7, -0.6); engine.add(battery);
+const reservoir = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.12), new THREE.MeshStandardMaterial({ color: 0x2f6fbf, roughness: 0.3, transparent: true, opacity: 0.85 }));
+reservoir.position.set(-1.25, 0.7, 0.62); engine.add(reservoir);
+for (const z of [0.66, -0.66]) { const st = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 20), engineMetal); st.position.set(-1.25, 0.86, z); engine.add(st); }
+// Turbo: hot side snail plus a visible compressor wheel.
+const turbo = new THREE.Group(); turbo.position.set(-1.27, 0.8, 0.2); engine.add(turbo);
+const snail = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.04, 16, 40), turboMat); turbo.add(snail);
+const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.09, 24), turboMat); housing.rotation.x = Math.PI / 2; housing.position.z = 0.07; turbo.add(housing);
+const compressor = new THREE.Group(); compressor.position.z = 0.12; turbo.add(compressor);
+for (let i = 0; i < 7; i++) {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.01), chrome); b.rotation.z = i * Math.PI * 2 / 7; b.translateY(0.027); compressor.add(b);
+}
+// Intake pipe from the turbo to the front.
+const path = new THREE.CatmullRomCurve3([new THREE.Vector3(-1.27, 0.8, 0.34), new THREE.Vector3(-1.5, 0.95, 0.45), new THREE.Vector3(-1.85, 0.88, 0.45), new THREE.Vector3(-1.95, 0.62, 0.3)]);
+const pipeMesh = new THREE.Mesh(new THREE.TubeGeometry(path, 40, 0.035, 12), new THREE.MeshStandardMaterial({ color: 0x9b111e, roughness: 0.35, metalness: 0.3 }));
+engine.add(pipeMesh);
+const turboLight = new THREE.PointLight(0xff5a1e, 0, 1.2, 2); turboLight.position.set(-1.27, 0.95, 0.2); engine.add(turboLight);
+tagClick(engine, 'engine');
+
+// ---------- Interaction ----------
+const ray = new THREE.Raycaster();
+const ptr = new THREE.Vector2();
+let down = null;
+canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; controls.autoRotate = false; setPressed('bSpin', false); });
+canvas.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) return;
+  const r = canvas.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(clickable, false)[0];
+  if (!hit) return;
+  const p = hit.object.userData.part;
+  if (p === 'engine') { setHood(true); setEngine(!running); }
+  else toggle(p);
+});
+
+function setPressed(id, on) { document.getElementById(id).setAttribute('aria-pressed', on ? 'true' : 'false'); }
+function toggle(name) { parts[name].open = !parts[name].open; syncButtons(); }
+function setHood(on) { parts.hood.open = on; syncButtons(); }
+const doorNames = ['doorFL', 'doorFR', 'doorRL', 'doorRR'];
+function syncButtons() {
+  setPressed('bHood', parts.hood.open);
+  setPressed('bHatch', parts.hatch.open);
+  setPressed('bDoors', doorNames.some(n => parts[n].open));
+}
+document.getElementById('bHood').onclick = () => toggle('hood');
+document.getElementById('bHatch').onclick = () => toggle('hatch');
+document.getElementById('bDoors').onclick = () => { const open = !doorNames.some(n => parts[n].open); doorNames.forEach(n => parts[n].open = open); syncButtons(); };
+document.getElementById('bSpin').onclick = () => { controls.autoRotate = !controls.autoRotate; setPressed('bSpin', controls.autoRotate); };
+
+// Engine simulation, or live rpm from the app.
+let running = false, gas = false, rpm = 0, liveRpm = null;
+const gasBtn = document.getElementById('gas');
+function setEngine(on) {
+  running = on; setPressed('bEngine', on);
+  document.getElementById('bEngine').textContent = on ? 'Motoru durdur' : 'Motoru çalıştır';
+  gasBtn.hidden = !on || liveRpm !== null;
+}
+document.getElementById('bEngine').onclick = () => { if (!running) setHood(true); setEngine(!running); };
+gasBtn.addEventListener('pointerdown', e => { gas = true; gasBtn.setPointerCapture(e.pointerId); });
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) gasBtn.addEventListener(ev, () => { gas = false; });
+
+// Bridge for the Android app: window.golf.setRpm(rpm) drives everything from the car.
+window.golf = {
+  setRpm(v) { liveRpm = v; if (!running && v > 300) setEngine(true); if (running && v < 100) setEngine(false); gasBtn.hidden = true; },
+  openHood(on) { setHood(!!on); },
+};
+
+// ---------- Loop ----------
+const rpmEl = document.getElementById('rpm');
+const tagT = document.getElementById('tagTurbo'), tagE = document.getElementById('tagEngine'), boostEl = document.getElementById('boost');
+const tmp = new THREE.Vector3();
+function placeTag(el, obj, show) {
+  obj.getWorldPosition(tmp); tmp.y += 0.18; tmp.project(camera);
+  el.style.left = ((tmp.x + 1) / 2 * innerWidth) + 'px';
+  el.style.top = ((1 - tmp.y) / 2 * innerHeight) + 'px';
+  el.classList.toggle('on', show && tmp.z < 1);
+}
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h;
+  camera.fov = w < h ? 58 : 36; camera.updateProjectionMatrix();
+  // Keep the whole car in frame: distance from the horizontal field of view.
+  const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect);
+  const fit = Math.max(6.2, 2.9 / Math.tan(hfov / 2));
+  controls.minDistance = fit * 0.6; controls.maxDistance = fit * 1.6;
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  camera.position.copy(controls.target).addScaledVector(dir, fit);
+}
+addEventListener('resize', resize); resize();
+
+const clock = new THREE.Clock();
+let crank = 0, turboAngle = 0;
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  for (const p of Object.values(parts)) {
+    p.t += ((p.open ? 1 : 0) - p.t) * Math.min(1, 6 * dt);
+    const ease = p.t * p.t * (3 - 2 * p.t);
+    p.g.rotation[p.axis] = p.sign * p.max * ease;
+  }
+  let target = running ? (gas ? 6400 : 820) : 0;
+  if (liveRpm !== null) target = liveRpm;
+  rpm += (target - rpm) * Math.min(1, (gas ? 1.6 : 3) * dt);
+  if (!running && liveRpm === null && rpm < 5) rpm = 0;
+  const f = Math.min(1, rpm / 7000);
+  crank += rpm / 60 * Math.PI * 2 * dt;
+  turboAngle += rpm * dt * 0.08;
+  compressor.rotation.z = turboAngle;
+  const boost = Math.max(0, (rpm - 1500) / 4500 * 1.2);
+  turboMat.emissiveIntensity = boost * 0.9;
+  turboLight.intensity = boost * 3;
+  // Engine rocks on its mounts and the body follows slightly.
+  const shake = rpm > 0 ? Math.sin(crank * 2) * (0.0025 + f * 0.004) : 0;
+  engine.position.y = shake; car.position.y = shake * 0.25;
+  tailMat.emissiveIntensity = running ? 1.2 : 0.4;
+  headMat.emissiveIntensity = running ? 1.4 : 0.6;
+  ringMat.color.setRGB(0.89, 0.0 + f * 0.25, 0.1 * (1 - f));
+  redFill.intensity = 6 + f * 14;
+  const wheelSpin = liveRpm === null ? 0 : rpm / 60 * 0.05;
+  wheels.forEach(w => w.rotation.z -= wheelSpin * dt * 10);
+  rpmEl.textContent = Math.round(rpm / 10) * 10;
+  rpmEl.classList.toggle('hot', rpm > 6000);
+  document.getElementById('gas').style.setProperty('--p', (f * 100).toFixed(1) + '%');
+  boostEl.textContent = boost.toFixed(1);
+  const bayVisible = parts.hood.t > 0.6;
+  placeTag(tagT, turbo, bayVisible);
+  placeTag(tagE, cover, bayVisible && !running);
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+
+</body>
+</html>
