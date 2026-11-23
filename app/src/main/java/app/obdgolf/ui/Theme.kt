@@ -4,6 +4,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import app.obdgolf.R
+
+val Sora = FontFamily(
+    Font(R.font.sora_extralight, FontWeight.ExtraLight),
+    Font(R.font.sora_light, FontWeight.Light),
+    Font(R.font.sora_semibold, FontWeight.SemiBold),
+)
 
 object C {
     val Bg = Color(0xFF0D0E10)

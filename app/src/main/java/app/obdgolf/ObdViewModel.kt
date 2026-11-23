@@ -69,12 +69,6 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
     private var job: Job? = null
     private var session: ObdSession? = null
-    private var demoIo: DemoElmIo? = null
-
-    /** Garage "hold to rev" button; only does something in demo mode. */
-    fun setGas(on: Boolean) {
-        demoIo?.gas = on
-    }
 
     val bluetoothReady: Boolean get() = bt.isAvailable && bt.isEnabled
 
@@ -118,11 +112,10 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         job = null
         session?.close()
         session = null
-        demoIo = null
         _link.value = LinkState.Disconnected
     }
 
-    private fun startDemo() = start("Demo") { DemoElmIo().also { demoIo = it } }
+    private fun startDemo() = start("Demo") { DemoElmIo() }
 
     private fun start(name: String, open: suspend () -> ElmIo) {
         disconnect()
