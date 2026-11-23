@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Ana gösterge</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#ff4d5e}a:hover{color:#ff8a95}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0d0e10; color: #f2f2f3; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; padding: 20px 20px 24px; gap: 18px">
+  <div style="display: flex; align-items: center; justify-content: space-between">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <div style="width: 36px; height: 36px; border-radius: 10px; background: {{accent}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; color: #ffffff">G6</div>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: 0.04em">GOLF MK6</span>
+        <span style="font-size: 12px; color: #a3a5ab">1.4 TSI · DSG</span>
+      </div>
+    </div>
+    <a href="Connect.dc.html" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 22px; background: #1a1c20; text-decoration: none; color: #f2f2f3; font-size: 13px">
+      <span style="width: 8px; height: 8px; border-radius: 4px; background: #3ddc84"></span>
+      Bağlı
+    </a>
+  </div>
+
+  <div style="position: relative; width: 300px; height: 270px; align-self: center">
+    <svg width="300" height="270" viewBox="0 0 300 270" aria-hidden="true" style="position: absolute; left: 0; top: 0">
+      <path d="M58.08 241.92 A130 130 0 1 1 241.92 241.92" fill="none" stroke="#24262b" stroke-width="16" stroke-linecap="round" pathLength="100"></path>
+      <path d="M58.08 241.92 A130 130 0 1 1 241.92 241.92" fill="none" stroke="#5a1018" stroke-width="16" pathLength="100" stroke-dasharray="0 85.7 14.3 100"></path>
+      <path d="M58.08 241.92 A130 130 0 1 1 241.92 241.92" fill="none" stroke="{{accent}}" stroke-width="16" stroke-linecap="round" pathLength="100" stroke-dasharray="35 100"></path>
+    </svg>
+    <div style="position: absolute; left: 0; right: 0; top: 78px; display: flex; flex-direction: column; align-items: center; gap: 2px">
+      <span style="font-size: 12px; letter-spacing: 0.14em; color: #a3a5ab">DEVİR</span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 64px; line-height: 1">2450</span>
+      <span style="font-size: 13px; color: #a3a5ab">rpm</span>
+    </div>
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center">
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 40px; line-height: 1">72</span>
+      <span style="font-size: 12px; color: #a3a5ab">km/h</span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+    <div style="background: #17191d; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 12px; color: #a3a5ab">Su sıcaklığı</span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 30px">90<span style="font-size: 16px; color: #a3a5ab"> °C</span></span>
+      <div style="height: 4px; border-radius: 2px; background: #24262b"><div style="width: 60%; height: 4px; border-radius: 2px; background: #3ddc84"></div></div>
+    </div>
+    <div style="background: #17191d; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 12px; color: #a3a5ab">Akü voltajı</span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 30px">14.2<span style="font-size: 16px; color: #a3a5ab"> V</span></span>
+      <div style="height: 4px; border-radius: 2px; background: #24262b"><div style="width: 75%; height: 4px; border-radius: 2px; background: #3ddc84"></div></div>
+    </div>
+    <div style="background: #17191d; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 12px; color: #a3a5ab">Emme sıcaklığı</span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 30px">31<span style="font-size: 16px; color: #a3a5ab"> °C</span></span>
+    </div>
+    <div style="background: #17191d; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 12px; color: #a3a5ab">Motor yükü</span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 30px">38<span style="font-size: 16px; color: #a3a5ab"> %</span></span>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1"></div>
+
+  <nav style="display: flex; gap: 8px; background: #17191d; border-radius: 22px; padding: 6px">
+    <a href="Main.dc.html" style="flex-grow: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: {{accent}}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600">Gösterge</a>
+    <a href="Details.dc.html" style="flex-grow: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 16px; color: #d6d7da; text-decoration: none; font-size: 14px">Tüm veriler</a>
+    <a href="Connect.dc.html" style="flex-grow: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 16px; color: #d6d7da; text-decoration: none; font-size: 14px">Bağlantı</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#d0021b","options":["#d0021b","#e30613","#b5121b"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#d0021b' };
+}
+}
+</script>
+</body>
+</html>

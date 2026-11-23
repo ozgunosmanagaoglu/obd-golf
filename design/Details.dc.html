@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Tüm veriler</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#ff4d5e}a:hover{color:#ff8a95}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #0d0e10; color: #f2f2f3; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; padding: 20px 20px 24px; gap: 16px">
+  <div style="display: flex; align-items: center; justify-content: space-between">
+    <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px">Tüm veriler</h1>
+    <span style="font-size: 12px; color: #a3a5ab">Canlı · 8 Hz</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <span style="font-size: 12px; letter-spacing: 0.12em; color: #a3a5ab">STANDART OBD</span>
+    <div style="background: #17191d; border-radius: 16px; display: flex; flex-direction: column">
+      <sc-for list="{{std}}" as="row" hint-placeholder-count="8">
+        <div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 16px; border-bottom: 1px solid #202227">
+          <span style="font-size: 14px; color: #d6d7da">{{row.label}}</span>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px">{{row.value}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <span style="font-size: 12px; letter-spacing: 0.12em; color: #a3a5ab">VW'YE ÖZEL</span>
+      <span style="font-size: 11px; padding: 3px 8px; border-radius: 10px; background: #3a0a10; color: #ff8a95">Yakında</span>
+    </div>
+    <div style="background: #17191d; border-radius: 16px; display: flex; flex-direction: column">
+      <sc-for list="{{vw}}" as="row" hint-placeholder-count="5">
+        <div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 16px; border-bottom: 1px solid #202227">
+          <span style="font-size: 14px; color: #a3a5ab">{{row.label}}</span>
+          <span style="font-size: 15px; color: #8a8d94">—</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1"></div>
+
+  <nav style="display: flex; gap: 8px; background: #17191d; border-radius: 22px; padding: 6px">
+    <a href="Main.dc.html" style="flex-grow: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 16px; color: #d6d7da; text-decoration: none; font-size: 14px">Gösterge</a>
+    <a href="Details.dc.html" style="flex-grow: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: {{accent}}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600">Tüm veriler</a>
+    <a href="Connect.dc.html" style="flex-grow: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 16px; color: #d6d7da; text-decoration: none; font-size: 14px">Bağlantı</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#d0021b","options":["#d0021b","#e30613","#b5121b"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {
+accent: this.props.accent ?? '#d0021b',
+std: [
+{ label: 'Devir', value: '2450 rpm' },
+{ label: 'Hız', value: '72 km/h' },
+{ label: 'Su sıcaklığı', value: '90 °C' },
+{ label: 'Emme sıcaklığı', value: '31 °C' },
+{ label: 'Dış sıcaklık', value: '6 °C' },
+{ label: 'Motor yükü', value: '38 %' },
+{ label: 'Gaz pedalı', value: '22 %' },
+{ label: 'Akü voltajı', value: '14.2 V' }
+],
+vw: [
+{ label: 'Yağ sıcaklığı' },
+{ label: 'DSG sıcaklığı' },
+{ label: 'Turbo basıncı' },
+{ label: 'Klima / iç sıcaklık' },
+{ label: 'Yakıt tüketimi' }
+]
+};
+}
+}
+</script>
+</body>
+</html>
