@@ -59,6 +59,7 @@
   button:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
   #gas { min-width: 180px; min-height: 52px; border-radius: 26px; font-weight: 600; letter-spacing: 0.22em; background: linear-gradient(90deg, var(--red) var(--p, 0%), var(--glass) var(--p, 0%)); touch-action: none; }
   #gas[hidden] { display: none !important; }
+  .credit { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 4px); font-size: 9px; color: #6f747c; pointer-events: none; }
   .tag {
     position: fixed; pointer-events: none; transform: translate(-50%, -120%);
     font-size: 11px; letter-spacing: 0.16em; padding: 6px 10px; border-radius: 12px;
@@ -79,13 +80,14 @@
   <div class="hud">
     <div class="rpm" id="rpm">0</div>
     <div class="eyebrow" style="margin-top:4px">DEVİR / DK</div>
-    <div class="hint" id="hint">Sürükle: döndür · Parçaya dokun: aç / kapat</div>
+    <div class="hint" id="hint">Model yükleniyor…</div>
   </div>
 </div>
 
 <div class="tag" id="tagTurbo">TURBO · <span id="boost">0.0</span> bar</div>
 <div class="tag" id="tagEngine">EA111 · 4 SİLİNDİR</div>
 
+<div class="credit">3D model: “Volkswagen Golf 6” · Nieve5677 · CC BY 4.0</div>
 <div class="dock">
   <button id="gas" type="button" hidden>BASILI TUT · GAZ</button>
   <div class="row">
@@ -107,6 +109,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const MODEL_URL = 'golf6/golf6.json';
 
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -168,189 +173,162 @@ const redFill = new THREE.PointLight(0xe3001b, 6, 9, 2); redFill.position.set(-3
 const rim = new THREE.PointLight(0x8fb4ff, 3, 10, 2); rim.position.set(4, 1.5, -4); scene.add(rim);
 
 // ---------- Materials ----------
-const paint = new THREE.MeshPhysicalMaterial({ color: 0x6f747b, metalness: 0.75, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.06 });
-const glass = new THREE.MeshPhysicalMaterial({ color: 0x0b0f14, metalness: 0.2, roughness: 0.05, transparent: true, opacity: 0.72 });
+const paint = new THREE.MeshPhysicalMaterial({ color: 0x6b7077, metalness: 0.7, roughness: 0.33, clearcoat: 1, clearcoatRoughness: 0.05 });
+const glass = new THREE.MeshPhysicalMaterial({ color: 0x10151b, metalness: 0.1, roughness: 0.04, transparent: true, opacity: 0.55 });
 const black = new THREE.MeshStandardMaterial({ color: 0x0b0b0c, roughness: 0.55 });
 const trim = new THREE.MeshStandardMaterial({ color: 0x18191c, roughness: 0.6 });
-const interior = new THREE.MeshStandardMaterial({ color: 0x1c1d21, roughness: 0.9 });
 const chrome = new THREE.MeshStandardMaterial({ color: 0xd9dde2, metalness: 1, roughness: 0.15 });
-const alloy = new THREE.MeshStandardMaterial({ color: 0xb7bcc3, metalness: 0.9, roughness: 0.28 });
-const tyre = new THREE.MeshStandardMaterial({ color: 0x0d0d0e, roughness: 0.85 });
 const engineMetal = new THREE.MeshStandardMaterial({ color: 0x3a3d43, metalness: 0.7, roughness: 0.45 });
 const camCover = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, metalness: 0.6, roughness: 0.35 });
 const redCoil = new THREE.MeshStandardMaterial({ color: 0xc4121f, roughness: 0.4 });
 const turboMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.95, roughness: 0.3, emissive: new THREE.Color(0xff4a10), emissiveIntensity: 0 });
-const headMat = new THREE.MeshStandardMaterial({ color: 0xe9eef5, emissive: 0xdfe8ff, emissiveIntensity: 0.6, roughness: 0.1 });
-const tailMat = new THREE.MeshStandardMaterial({ color: 0x7a0d18, emissive: 0xff1a2e, emissiveIntensity: 0.4, roughness: 0.2 });
+const headMat = new THREE.MeshStandardMaterial({ color: 0xe9eef5, emissive: 0xdfe8ff, emissiveIntensity: 0.6, roughness: 0.05, transparent: true, opacity: 0.6 });
+const tailMat = new THREE.MeshStandardMaterial({ color: 0x7a0d18, emissive: 0xff1a2e, emissiveIntensity: 0.4, roughness: 0.2, transparent: true, opacity: 0.85 });
 
 const car = new THREE.Group();
 scene.add(car);
 const clickable = [];
-
-function extrude(points, depth, mat, z, holes) {
-  const s = new THREE.Shape();
-  points.forEach((p, i) => (i ? s.lineTo(p[0], p[1]) : s.moveTo(p[0], p[1])));
-  if (holes) holes(s);
-  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 3, curveSegments: 24 });
-  g.translate(0, 0, -depth / 2);
-  const m = new THREE.Mesh(g, mat);
-  m.position.z = z || 0;
-  m.castShadow = true; m.receiveShadow = true;
-  return m;
-}
-function extrudeShape(shape, depth, mat, z) {
-  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 3, curveSegments: 28 });
-  g.translate(0, 0, -depth / 2);
-  const m = new THREE.Mesh(g, mat); m.position.z = z || 0; m.castShadow = true; m.receiveShadow = true; return m;
-}
-
-// Core tub: dark, so open doors, bay and boot show an interior. Wheel arches cut into the bottom edge.
-{
-  const s = new THREE.Shape();
-  s.moveTo(-2.1, 0.33); s.lineTo(-2.08, 0.6); s.lineTo(-1.0, 0.6); s.lineTo(-0.95, 0.97); s.lineTo(2.08, 0.96); s.lineTo(2.12, 0.45); s.lineTo(2.0, 0.33);
-  s.lineTo(1.69, 0.33); s.absarc(1.29, 0.31, 0.4, 0, Math.PI, false);
-  s.lineTo(-0.91, 0.33); s.absarc(-1.31, 0.31, 0.4, 0, Math.PI, false);
-  s.closePath();
-  car.add(extrudeShape(s, 1.6, interior, 0));
-}
-// Seats (visible with doors open).
-for (const z of [0.38, -0.38]) for (const x of [-0.25, 0.75]) {
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.48), trim); seat.position.set(x, 1.0, z); car.add(seat);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.42, 0.48), trim); back.position.set(x + 0.25, 1.2, z); back.rotation.z = -0.15; car.add(back);
-}
-
-// Greenhouse (glass cabin) and roof.
-car.add(extrude([[-0.95, 0.97], [-0.25, 1.43], [1.38, 1.43], [2.02, 0.98]], 1.5, glass, 0));
-const roof = extrude([[-0.22, 1.42], [1.36, 1.42], [1.36, 1.47], [-0.2, 1.47]], 1.52, paint, 0); car.add(roof);
-// A-pillars and C-pillars in paint.
-for (const side of [1, -1]) {
-  const a = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.06, 0.06), paint);
-  a.position.set(-0.6, 1.2, side * 0.74); a.rotation.z = Math.atan2(0.46, 0.7); car.add(a);
-}
-
-// Front fenders.
-for (const side of [1, -1]) {
-  const s = new THREE.Shape();
-  s.moveTo(-0.95, 0.98); s.lineTo(-0.95, 0.33);
-  s.lineTo(-0.91, 0.33); s.absarc(-1.31, 0.31, 0.4, 0, Math.PI, false);
-  s.lineTo(-2.1, 0.33); s.lineTo(-2.13, 0.62); s.lineTo(-2.05, 0.78); s.closePath();
-  car.add(extrudeShape(s, 0.06, paint, side * 0.86));
-}
-// Rear quarters.
-for (const side of [1, -1]) {
-  const s = new THREE.Shape();
-  s.moveTo(1.28, 0.71); s.lineTo(1.28, 1.4); s.lineTo(1.40, 1.44); s.lineTo(2.06, 0.98); s.lineTo(2.12, 0.45); s.lineTo(2.0, 0.33); s.lineTo(1.69, 0.33);
-  s.absarc(1.29, 0.31, 0.4, 0, Math.PI / 2, false); s.closePath();
-  car.add(extrudeShape(s, 0.06, paint, side * 0.86));
-}
-// Front fascia, grille, lights.
-const fascia = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.46, 1.74), paint); fascia.position.set(-2.08, 0.55, 0); fascia.castShadow = true; car.add(fascia);
-const grille = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.8), black); grille.position.set(-2.14, 0.68, 0); car.add(grille);
-const grilleBar = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.015, 0.8), chrome); grilleBar.position.set(-2.165, 0.72, 0); car.add(grilleBar);
-const lower = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 1.1), black); lower.position.set(-2.14, 0.42, 0); car.add(lower);
-for (const side of [1, -1]) {
-  const hl = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.11, 0.36), headMat); hl.position.set(-2.09, 0.69, side * 0.6); hl.rotation.y = side * 0.12; car.add(hl);
-  const fog = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 20), headMat); fog.rotation.z = Math.PI / 2; fog.position.set(-2.15, 0.42, side * 0.62); car.add(fog);
-}
-// Rear bumper and tail lights.
-const rbump = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.3, 1.76), paint); rbump.position.set(2.08, 0.48, 0); rbump.castShadow = true; car.add(rbump);
-const diff = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 1.2), black); diff.position.set(2.16, 0.37, 0); car.add(diff);
-const tails = [];
-for (const side of [1, -1]) {
-  const tl = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.34), tailMat); tl.position.set(2.1, 0.9, side * 0.68); car.add(tl); tails.push(tl);
-}
-const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.12, 16), chrome); pipe.rotation.z = Math.PI / 2; pipe.position.set(2.16, 0.36, -0.5); car.add(pipe);
-
-// Mirrors.
-for (const side of [1, -1]) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.11, 0.16), paint); m.position.set(-0.78, 1.04, side * 0.98); car.add(m);
-}
-
-// ---------- Opening parts ----------
 const parts = {};
-function hinge(name, pivot, axis, sign, max) {
-  const g = new THREE.Group(); g.position.copy(pivot); car.add(g);
-  parts[name] = { g, axis, sign, max, open: false, t: 0 };
+const wheels = [];
+
+// ---------- The Golf: "Volkswagen Golf 6" by Nieve5677, CC BY 4.0 ----------
+// The model comes as one piece per material, so doors, hood and hatch are cut out here
+// by where each triangle sits. Numbers are in the model's own coordinates (metres):
+// x across the car (centre 1.345), y up, z along it (front bumper -0.1, rear -4.57).
+const CX = 1.345, CZ = -2.335;
+const DROP = ['Object_2', 'Object_3', 'Object_4', 'Object_6']; // stray bits far from the car
+// Each opening part is a box made of planes [a, b, c, d]: a point is inside when a*x + b*y + c*z + d > 0.
+// Triangles that cross a seam are cut along it, so the panel gaps come out straight.
+const L = (side) => side === 'L' ? 1 : -1;
+function doorPlanes(side, front) {
+  const s = L(side), common = [[s, 0, 0, -s * CX - 0.5], [0, 1, 0, -0.3], [0, -1, 0, 1.47]];
+  return front
+    ? [...common, [0, 0, -1, -1.5], [0, 0, 1, 2.64], [0, -1, -0.8727, -0.344]]  // last one: the A-pillar slope
+    : [...common, [0, 0, -1, -2.64], [0, 0.6538, 1, 3.0173], [0, 0, 1, 3.74]];   // slanted rear edge
+}
+const REGIONS = [
+  { name: 'hood', planes: [[0, 0, 1, 1.36], [0, 1, 0, -0.84], [1, 0, 0, -(CX - 0.76)], [-1, 0, 0, CX + 0.76]],
+    keep: (mat, ny) => (mat === 'body' || mat === '1_body') && ny > 0.35 },
+  { name: 'hatch', planes: [[0, 0, -1, -3.93], [0, 1, 0, -0.56]], keep: () => true },
+  ...['L', 'R'].flatMap(side => [true, false].map(front => ({
+    name: 'door' + side + (front ? 'F' : 'R'), planes: doorPlanes(side, front),
+    keep: (mat, ny, y) => mat !== 'Gar_alu1' && !(mat === 'Gar_gum1' && y < 0.7),
+  }))),
+];
+const STRIDE = 6; // x y z nx ny nz
+function clip(poly, [a, b, c, d]) {
+  const ins = [], outs = [], n = poly.length;
+  for (let i = 0; i < n; i++) {
+    const p = poly[i], q = poly[(i + 1) % n];
+    const dp = a * p[0] + b * p[1] + c * p[2] + d, dq = a * q[0] + b * q[1] + c * q[2] + d;
+    (dp >= 0 ? ins : outs).push(p);
+    if ((dp >= 0) !== (dq >= 0)) {
+      const t = dp / (dp - dq), v = new Array(STRIDE);
+      for (let k = 0; k < STRIDE; k++) v[k] = p[k] + (q[k] - p[k]) * t;
+      ins.push(v); outs.push(v);
+    }
+  }
+  return [ins, outs];
+}
+function splitTriangle(tri, mat, out) {
+  const [a, b, c] = tri;
+  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+  const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+  const fny = Math.abs(ny) / (Math.hypot(nx, ny, nz) || 1), cy = (a[1] + b[1] + c[1]) / 3;
+  let rest = [tri];
+  for (const r of REGIONS) {
+    if (!r.keep(mat, fny, cy)) continue;
+    const next = [];
+    for (let poly of rest) {
+      for (const pl of r.planes) {
+        const [i, o] = clip(poly, pl);
+        if (o.length >= 3) next.push(o);
+        poly = i;
+        if (poly.length < 3) break;
+      }
+      if (poly.length >= 3) (out[r.name] ||= []).push(poly);
+    }
+    rest = next;
+  }
+  for (const poly of rest) (out.body ||= []).push(poly);
+}
+function polysToGeometry(polys) {
+  const pos = [], nor = [];
+  for (const poly of polys) for (let i = 1; i < poly.length - 1; i++) for (const v of [poly[0], poly[i], poly[i + 1]]) {
+    pos.push(v[0], v[1], v[2]); const l = Math.hypot(v[3], v[4], v[5]) || 1; nor.push(v[3] / l, v[4] / l, v[5] / l);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   return g;
 }
-function tagClick(obj, name) { obj.traverse(o => { if (o.isMesh) { o.userData.part = name; clickable.push(o); } }); }
-
-// Hood: hinged at the windscreen, lifts at the front.
-{
-  const g = hinge('hood', new THREE.Vector3(-0.95, 0.99, 0), 'z', -1, 1.05);
-  const inner = new THREE.Group(); inner.rotation.z = Math.atan2(0.2, 1.1); g.add(inner);
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(1.13, 0.035, 1.68), paint); hood.position.x = -0.56; hood.castShadow = true; inner.add(hood);
-  const under = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.01, 1.5), trim); under.position.set(-0.55, -0.025, 0); inner.add(under);
-  tagClick(g, 'hood');
-}
-// Doors: hinged at the front edge, swing out.
-function door(name, x0, x1, side, glassPts, lowerPts) {
-  const g = hinge(name, new THREE.Vector3(x0, 0, side * 0.9), 'y', -side, 1.1);
-  const lowerM = extrude(lowerPts.map(p => [p[0] - x0, p[1]]), 0.05, paint, 0); g.add(lowerM);
-  const glassM = extrude(glassPts.map(p => [p[0] - x0, p[1]]), 0.02, glass, 0); g.add(glassM);
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.025, 0.03), chrome); handle.position.set(x1 - x0 - 0.22, 0.86, side * 0.035); g.add(handle);
-  tagClick(g, name);
-}
-for (const side of [1, -1]) {
-  door(side > 0 ? 'doorFL' : 'doorFR', -0.95, 0.28, side,
-    [[-0.88, 0.99], [0.26, 0.99], [0.26, 1.39], [-0.25, 1.39]],
-    [[-0.95, 0.34], [0.28, 0.34], [0.28, 0.98], [-0.95, 0.98]]);
-  door(side > 0 ? 'doorRL' : 'doorRR', 0.3, 1.27, side,
-    [[0.33, 0.99], [1.2, 0.99], [1.06, 1.38], [0.33, 1.38]],
-    [[0.3, 0.34], [0.9, 0.34], [1.27, 0.71], [1.27, 0.98], [0.3, 0.98]]);
-}
-// Hatch: hinged at the roof, lifts up.
-{
-  const g = hinge('hatch', new THREE.Vector3(1.40, 1.45, 0), 'z', 1, 1.25);
-  const hatch = extrude([[0, 0], [0.06, 0.01], [0.74, -0.47], [0.75, -0.8], [0.68, -0.8], [0.66, -0.5], [0.0, -0.05]], 1.6, paint, 0);
-  g.add(hatch);
-  const rw = extrude([[0.07, -0.03], [0.6, -0.4], [0.62, -0.42], [0.1, -0.06]], 1.3, glass, 0); rw.position.x = 0.01; g.add(rw);
-  tagClick(g, 'hatch');
+const MAT_MAP = { body: paint, '1_body': paint, Gar_skl1: glass, headlights: headMat, taillights: tailMat, Color_A01: tailMat, Color_A16: tailMat };
+const HINGES = {
+  hood:   { pivot: [CX, 1.06, -1.33], axis: 'x', sign: -1, max: 1.0 },
+  hatch:  { pivot: [CX, 1.5, -3.93], axis: 'x', sign: 1, max: 1.2 },
+  doorLF: { pivot: [CX + 0.88, 0.8, -1.5], axis: 'y', sign: -1, max: 1.05 },
+  doorRF: { pivot: [CX - 0.88, 0.8, -1.5], axis: 'y', sign: 1, max: 1.05 },
+  doorLR: { pivot: [CX + 0.86, 0.8, -2.64], axis: 'y', sign: -1, max: 1.05 },
+  doorRR: { pivot: [CX - 0.86, 0.8, -2.64], axis: 'y', sign: 1, max: 1.05 },
+};
+const model = new THREE.Group(); model.position.set(-CX, 0, -CZ); car.add(model);
+const groups = { body: model };
+for (const [name, h] of Object.entries(HINGES)) {
+  const pivot = new THREE.Group(); pivot.position.set(...h.pivot); model.add(pivot);
+  const inner = new THREE.Group(); inner.position.set(-h.pivot[0], -h.pivot[1], -h.pivot[2]); pivot.add(inner);
+  groups[name] = inner;
+  parts[name] = { g: pivot, axis: h.axis, sign: h.sign, max: h.max, open: false, t: 0 };
 }
 
-// ---------- Wheels ----------
-const wheels = [];
-function wheel(x, z) {
-  const w = new THREE.Group(); w.position.set(x, 0.31, z);
-  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.21, 40), tyre); t.rotation.x = Math.PI / 2; t.castShadow = true; w.add(t);
-  const spin = new THREE.Group(); w.add(spin);
-  const out = Math.sign(z);
-  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.02, 40), alloy); rim.rotation.x = Math.PI / 2; rim.position.z = out * 0.1; spin.add(rim);
-  for (let i = 0; i < 5; i++) {
-    const sp = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.19, 0.02), chrome);
-    sp.position.z = out * 0.115; sp.rotation.z = i * Math.PI * 2 / 5; sp.translateY(0.095); spin.add(sp);
+const loadingEl = document.getElementById('hint');
+new GLTFLoader().load(MODEL_URL, (gltf) => {
+  gltf.scene.updateMatrixWorld(true);
+  const meshes = [];
+  gltf.scene.traverse(o => { if (o.isMesh && !DROP.includes(o.name)) meshes.push(o); });
+  for (const m of meshes) {
+    const geo = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrixWorld);
+    if (!geo.attributes.normal) geo.computeVertexNormals();
+    const P = geo.attributes.position, N = geo.attributes.normal;
+    const vert = (i) => [P.getX(i), P.getY(i), P.getZ(i), N.getX(i), N.getY(i), N.getZ(i)];
+    const srcMat = m.material, matName = srcMat.name;
+    const buckets = {};
+    for (let i = 0; i < P.count; i += 3) splitTriangle([vert(i), vert(i + 1), vert(i + 2)], matName, buckets);
+    const mat = MAT_MAP[matName] || srcMat;
+    if (!MAT_MAP[matName]) { mat.metalness = Math.min(mat.metalness ?? 0, 0.6); }
+    for (const [p, polys] of Object.entries(buckets)) {
+      const mesh = new THREE.Mesh(polysToGeometry(polys), mat);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      groups[p].add(mesh);
+      if (p !== 'body') { mesh.userData.part = p; clickable.push(mesh); }
+    }
   }
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 20), trim); hub.rotation.x = Math.PI / 2; hub.position.z = out * 0.12; spin.add(hub);
-  car.add(w); wheels.push(spin);
-}
-wheel(-1.31, 0.78); wheel(-1.31, -0.78); wheel(1.29, 0.78); wheel(1.29, -0.78);
+  loadingEl.textContent = 'Sürükle: döndür · Parçaya dokun: aç / kapat';
+}, undefined, () => { loadingEl.textContent = 'Model yüklenemedi'; });
 
-// ---------- Engine bay ----------
-const engine = new THREE.Group(); car.add(engine);
-const block = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.66), engineMetal); block.position.set(-1.55, 0.74, 0.05); block.castShadow = true; engine.add(block);
-const cover = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.06, 0.6), camCover); cover.position.set(-1.55, 0.9, 0.05); engine.add(cover);
+// ---------- Engine bay (our own stand-in for the 1.4 TSI, the model has none) ----------
+// Normalised car coordinates: front is +z, bay centre about z = 1.5.
+const engine = new THREE.Group(); engine.position.set(0, 0, 1.5); car.add(engine);
+const block = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.24, 0.4), engineMetal); block.position.set(-0.05, 0.66, 0); block.castShadow = true; engine.add(block);
+const cover = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 0.34), camCover); cover.position.set(-0.05, 0.81, 0); engine.add(cover);
 for (let i = 0; i < 4; i++) {
-  const c = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.06, 12), redCoil); c.position.set(-1.55, 0.95, -0.2 + i * 0.16 + 0.05); engine.add(c);
+  const coil = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.06, 12), redCoil); coil.position.set(-0.29 + i * 0.16, 0.86, 0); engine.add(coil);
 }
-const radiator = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 1.3), black); radiator.position.set(-1.98, 0.75, 0); engine.add(radiator);
-const battery = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.17, 0.26), black); battery.position.set(-1.35, 0.7, -0.6); engine.add(battery);
+const radiator = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.24, 0.05), black); radiator.position.set(0, 0.6, 0.4); engine.add(radiator);
+const battery = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.17, 0.2), black); battery.position.set(-0.55, 0.62, -0.2); engine.add(battery);
 const reservoir = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.12), new THREE.MeshStandardMaterial({ color: 0x2f6fbf, roughness: 0.3, transparent: true, opacity: 0.85 }));
-reservoir.position.set(-1.25, 0.7, 0.62); engine.add(reservoir);
-for (const z of [0.66, -0.66]) { const st = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 20), engineMetal); st.position.set(-1.25, 0.86, z); engine.add(st); }
-// Turbo: hot side snail plus a visible compressor wheel.
-const turbo = new THREE.Group(); turbo.position.set(-1.27, 0.8, 0.2); engine.add(turbo);
-const snail = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.04, 16, 40), turboMat); turbo.add(snail);
-const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.09, 24), turboMat); housing.rotation.x = Math.PI / 2; housing.position.z = 0.07; turbo.add(housing);
-const compressor = new THREE.Group(); compressor.position.z = 0.12; turbo.add(compressor);
+reservoir.position.set(0.58, 0.62, -0.25); engine.add(reservoir);
+const bayFloor = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.02, 1.05), trim); bayFloor.position.set(0, 0.48, 0.02); engine.add(bayFloor);
+const turbo = new THREE.Group(); turbo.position.set(0.2, 0.7, -0.24); engine.add(turbo);
+const snail = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.038, 16, 40), turboMat); snail.rotation.y = Math.PI / 2; turbo.add(snail);
+const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.09, 24), turboMat); housing.rotation.z = Math.PI / 2; housing.position.x = 0.07; turbo.add(housing);
+const compressor = new THREE.Group(); compressor.position.x = 0.12; compressor.rotation.y = Math.PI / 2; turbo.add(compressor);
 for (let i = 0; i < 7; i++) {
-  const b = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.01), chrome); b.rotation.z = i * Math.PI * 2 / 7; b.translateY(0.027); compressor.add(b);
+  const bl = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.01), chrome); bl.rotation.z = i * Math.PI * 2 / 7; bl.translateY(0.027); compressor.add(bl);
 }
-// Intake pipe from the turbo to the front.
-const path = new THREE.CatmullRomCurve3([new THREE.Vector3(-1.27, 0.8, 0.34), new THREE.Vector3(-1.5, 0.95, 0.45), new THREE.Vector3(-1.85, 0.88, 0.45), new THREE.Vector3(-1.95, 0.62, 0.3)]);
-const pipeMesh = new THREE.Mesh(new THREE.TubeGeometry(path, 40, 0.035, 12), new THREE.MeshStandardMaterial({ color: 0x9b111e, roughness: 0.35, metalness: 0.3 }));
-engine.add(pipeMesh);
-const turboLight = new THREE.PointLight(0xff5a1e, 0, 1.2, 2); turboLight.position.set(-1.27, 0.95, 0.2); engine.add(turboLight);
-tagClick(engine, 'engine');
+const pipePath = new THREE.CatmullRomCurve3([new THREE.Vector3(0.33, 0.7, -0.24), new THREE.Vector3(0.45, 0.85, -0.05), new THREE.Vector3(0.45, 0.8, 0.3), new THREE.Vector3(0.3, 0.55, 0.45)]);
+engine.add(new THREE.Mesh(new THREE.TubeGeometry(pipePath, 40, 0.032, 12), new THREE.MeshStandardMaterial({ color: 0x9b111e, roughness: 0.35, metalness: 0.3 })));
+const turboLight = new THREE.PointLight(0xff5a1e, 0, 1.2, 2); turboLight.position.set(0.2, 0.85, -0.24); engine.add(turboLight);
+engine.traverse(o => { if (o.isMesh) { o.userData.part = 'engine'; clickable.push(o); } });
 
 // ---------- Interaction ----------
 const ray = new THREE.Raycaster();
@@ -372,7 +350,7 @@ canvas.addEventListener('pointerup', e => {
 function setPressed(id, on) { document.getElementById(id).setAttribute('aria-pressed', on ? 'true' : 'false'); }
 function toggle(name) { parts[name].open = !parts[name].open; syncButtons(); }
 function setHood(on) { parts.hood.open = on; syncButtons(); }
-const doorNames = ['doorFL', 'doorFR', 'doorRL', 'doorRR'];
+const doorNames = ['doorLF', 'doorRF', 'doorLR', 'doorRR'];
 function syncButtons() {
   setPressed('bHood', parts.hood.open);
   setPressed('bHatch', parts.hatch.open);
@@ -417,7 +395,7 @@ function resize() {
   camera.fov = w < h ? 58 : 36; camera.updateProjectionMatrix();
   // Keep the whole car in frame: distance from the horizontal field of view.
   const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect);
-  const fit = Math.max(6.2, 2.9 / Math.tan(hfov / 2));
+  const fit = Math.max(5.4, 2.45 / Math.tan(hfov / 2));
   controls.minDistance = fit * 0.6; controls.maxDistance = fit * 1.6;
   const dir = camera.position.clone().sub(controls.target).normalize();
   camera.position.copy(controls.target).addScaledVector(dir, fit);
@@ -452,8 +430,6 @@ renderer.setAnimationLoop(() => {
   headMat.emissiveIntensity = running ? 1.4 : 0.6;
   ringMat.color.setRGB(0.89, 0.0 + f * 0.25, 0.1 * (1 - f));
   redFill.intensity = 6 + f * 14;
-  const wheelSpin = liveRpm === null ? 0 : rpm / 60 * 0.05;
-  wheels.forEach(w => w.rotation.z -= wheelSpin * dt * 10);
   rpmEl.textContent = Math.round(rpm / 10) * 10;
   rpmEl.classList.toggle('hot', rpm > 6000);
   document.getElementById('gas').style.setProperty('--p', (f * 100).toFixed(1) + '%');
