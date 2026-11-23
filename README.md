@@ -43,3 +43,5 @@ Standart OBD (mod 01): devir, hız, su sıcaklığı, emme sıcaklığı, dış 
 ## Lisanslar
 
 Sora yazı tipi SIL Open Font License 1.1 ile dağıtılır (Google Fonts). three.js MIT lisanslıdır (`app/src/main/assets/garage3d/THREE_LICENSE.txt`).
+
+Garajdaki 3D araba modeli: "Volkswagen Golf 6" (https://sketchfab.com/3d-models/volkswagen-golf-6-46d9c43124b94f6293920944bef5b563), Nieve5677 (https://sketchfab.com/niev), CC BY 4.0 lisanslı. Uygulamada kapı, kaput ve bagaj açılsın diye parçalara ayrılıyor, motor bölmesi bizim çizimimiz. Ayrıntı: `app/src/main/assets/garage3d/golf6/license.txt`.
