@@ -10,6 +10,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +47,8 @@ import app.obdgolf.ui.CarScreen
 import app.obdgolf.ui.ConnectScreen
 import app.obdgolf.ui.DashboardScreen
 import app.obdgolf.ui.DetailsScreen
+import app.obdgolf.ui.FaultScreen
+import app.obdgolf.ui.SplashScreen
 import app.obdgolf.ui.Garage3DScreen
 import app.obdgolf.ui.HistoryScreen
 import app.obdgolf.ui.ObdTheme
@@ -81,16 +86,38 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String) { Garage("Garaj"), Dashboard("Gösterge"), Details("Veriler"), History("Geçmiş"), Connect("Bağlantı") }
+private enum class Tab(val label: String) {
+    Garage("Garaj"), Dashboard("Gösterge"), Details("Veriler"), Faults("Arıza"), History("Geçmiş"), Connect("Bağlantı")
+}
 
 @Composable
 private fun App(vm: ObdViewModel) {
+    val link by vm.link.collectAsState()
+    var splash by rememberSaveable { mutableStateOf(true) }
+
+    Box(Modifier.fillMaxSize().background(C.Bg)) {
+        MainContent(vm)
+        // Loading screen on top while Bluetooth and auto-connect start underneath.
+        AnimatedVisibility(visible = splash, exit = fadeOut(tween(350))) {
+            val status = when (val l = link) {
+                is LinkState.Connecting -> if (l.name == "Demo") "Demo modu başlatılıyor…" else "${l.name} bağlanıyor…"
+                is LinkState.Connected -> if (l.name == "Demo") "Demo modu hazır" else "${l.name} bağlandı"
+                else -> "Hazırlanıyor…"
+            }
+            SplashScreen(status) { splash = false }
+        }
+    }
+}
+
+@Composable
+private fun MainContent(vm: ObdViewModel) {
     val data by vm.data.collectAsState()
     val link by vm.link.collectAsState()
     val devices by vm.devices.collectAsState()
     val auto by vm.autoConnect.collectAsState()
     val demo by vm.demo.collectAsState()
     val drives by vm.drives.collectAsState()
+    val faults by vm.faults.collectAsState()
     var tab by rememberSaveable { mutableStateOf(Tab.Garage) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -105,6 +132,13 @@ private fun App(vm: ObdViewModel) {
                     Tab.Garage -> Garage3DScreen(data, link, demo)
                     Tab.Dashboard -> DashboardScreen(data, link) { tab = Tab.Connect }
                     Tab.Details -> DetailsScreen(data)
+                    Tab.Faults -> FaultScreen(
+                        state = faults,
+                        link = link,
+                        onRead = vm::readFaults,
+                        onClear = vm::clearFaults,
+                        onLinkClick = { tab = Tab.Connect },
+                    )
                     Tab.History -> HistoryScreen(drives, onDelete = vm::deleteDrive)
                     Tab.Connect -> ConnectScreen(
                         link = link,
@@ -121,9 +155,9 @@ private fun App(vm: ObdViewModel) {
                 }
             }
             Row(
-                Modifier.padding(horizontal = 12.dp, vertical = 10.dp).fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp)).background(C.Card).padding(6.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                Modifier.padding(horizontal = 10.dp, vertical = 10.dp).fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp)).background(C.Card).padding(5.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Tab.entries.forEach { t ->
                     val selected = t == tab
@@ -131,11 +165,11 @@ private fun App(vm: ObdViewModel) {
                         onClick = { tab = t },
                         modifier = Modifier.weight(1f).heightIn(min = 44.dp),
                         shape = RoundedCornerShape(16.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 1.dp),
                         colors = ButtonDefaults.textButtonColors(containerColor = if (selected) C.Red else Color.Transparent),
                     ) {
-                        Text(t.label, color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = 12.sp, maxLines = 1,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+                        Text(t.label, color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = 11.sp, maxLines = 1,
+                            softWrap = false, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
                     }
                 }
             }
