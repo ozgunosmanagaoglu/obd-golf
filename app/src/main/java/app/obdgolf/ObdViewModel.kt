@@ -84,6 +84,15 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** The user said no to a Bluetooth permission: tell them how to fix it. */
+    fun onPermissionDenied() {
+        if (job == null) {
+            _link.value = LinkState.Failed(
+                "Bluetooth izni verilmedi. Ayarlar > Uygulamalar > Golf OBD > İzinler'den \"Yakındaki cihazlar\" iznini aç."
+            )
+        }
+    }
+
     fun refreshDevices() {
         _devices.value = if (bluetoothReady) runCatching { bt.pairedDevices() }.getOrDefault(emptyList()) else emptyList()
     }

@@ -5,8 +5,13 @@
     <!-- Android 11 and older -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <!-- Android 12+: only talk to already paired devices, no scanning needed -->
+    <!-- Android 12+: connect to paired devices. SCAN is needed because connecting
+         stops any running discovery first (cancelDiscovery); we never use it for location. -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
 
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 
