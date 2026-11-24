@@ -12,6 +12,9 @@ import kotlin.math.roundToInt
 class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : ElmIo {
     @Volatile var gas: Boolean = false
 
+    // Demo faults: underboost, misfire and intake flap stored, lean mixture pending. Cleared by mode 04.
+    @Volatile private var faults = true
+
     private val start = clock()
     private var last = clock()
     private var rpm = 800.0
@@ -34,6 +37,19 @@ class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : Elm
             "0105" -> "4105" + hex1(coolant.roundToInt() + 40) + "\r"
             "010F" -> "410F" + hex1(30 + 40) + "\r"
             "0146" -> "4146" + hex1(6 + 40) + "\r"
+            "0101" -> if (faults) "41 01 83 07 64 00\r" else "4101000764 00\r"
+            // Engine answers in two CAN frames, the DSG answers too (no codes).
+            "03" -> if (faults) "008\r0:43 03 02 99 03 01\r1:20 15 00 00 00 00 00\r4300\r" else "4300\r4300\r"
+            "07" -> if (faults) "47010171\r" else "4700\r"
+            "0A" -> "4A00\r"
+            "04" -> { faults = false; "44\r44\r" }
+            "020200" -> if (faults) "4202000299\r" else "4202000000\r"
+            "020C00" -> "420C00" + hex2(2850 * 4) + "\r"
+            "020D00" -> "420D00" + hex1(64) + "\r"
+            "020500" -> "420500" + hex1(88 + 40) + "\r"
+            "020400" -> "420400" + hex1(92 * 255 / 100) + "\r"
+            "021100" -> "421100" + hex1(81 * 255 / 100) + "\r"
+            "020F00" -> "420F00" + hex1(34 + 40) + "\r"
             else -> if (command.startsWith("AT")) "OK\r" else "NO DATA\r"
         }
     }

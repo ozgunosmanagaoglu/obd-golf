@@ -11,6 +11,7 @@ import app.obdgolf.core.DemoElmIo
 import app.obdgolf.core.Drive
 import app.obdgolf.core.DriveRecorder
 import app.obdgolf.core.ElmIo
+import app.obdgolf.core.FaultReport
 import app.obdgolf.core.ObdSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -25,6 +26,13 @@ sealed interface LinkState {
     data class Connecting(val name: String) : LinkState
     data class Connected(val name: String, val adapterVersion: String?) : LinkState
     data class Failed(val message: String) : LinkState
+}
+
+sealed interface FaultState {
+    data object Idle : FaultState
+    data class Busy(val text: String) : FaultState
+    data class Ready(val report: FaultReport, val cleared: Boolean = false) : FaultState
+    data class Error(val message: String) : FaultState
 }
 
 class ObdViewModel(app: Application) : AndroidViewModel(app) {
@@ -69,6 +77,45 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
     private var job: Job? = null
     private var session: ObdSession? = null
+
+    private val _faults = MutableStateFlow<FaultState>(FaultState.Idle)
+    val faults: StateFlow<FaultState> = _faults.asStateFlow()
+
+    private fun connectedSession(): ObdSession? = session.takeIf { _link.value is LinkState.Connected }.also {
+        if (it == null) _faults.value = FaultState.Error("Önce adaptöre bağlan (ya da Bağlantı sekmesinden demo modunu aç).")
+    }
+
+    fun readFaults() {
+        val s = connectedSession() ?: return
+        if (_faults.value is FaultState.Busy) return
+        viewModelScope.launch {
+            _faults.value = FaultState.Busy("Arıza kodları okunuyor…")
+            _faults.value = try {
+                FaultState.Ready(s.readFaults())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                FaultState.Error("Okunamadı: ${e.message ?: "bağlantı hatası"}")
+            }
+        }
+    }
+
+    fun clearFaults() {
+        val s = connectedSession() ?: return
+        if (_faults.value is FaultState.Busy) return
+        viewModelScope.launch {
+            _faults.value = FaultState.Busy("Kodlar siliniyor…")
+            _faults.value = try {
+                val ok = s.clearFaults()
+                if (!ok) FaultState.Error("Araba silme komutunu onaylamadı. Kontak açık, motor kapalı olmalı.")
+                else FaultState.Ready(s.readFaults(), cleared = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                FaultState.Error("Silinemedi: ${e.message ?: "bağlantı hatası"}")
+            }
+        }
+    }
 
     val bluetoothReady: Boolean get() = bt.isAvailable && bt.isEnabled
 
@@ -122,6 +169,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         session?.close()
         session = null
         _link.value = LinkState.Disconnected
+        _faults.value = FaultState.Idle
     }
 
     private fun startDemo() = start("Demo") { DemoElmIo() }
