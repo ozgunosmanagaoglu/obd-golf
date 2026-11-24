@@ -33,12 +33,19 @@ class BluetoothConnector(context: Context) {
     suspend fun connect(address: String): ElmIo = withContext(Dispatchers.IO) {
         val a = adapter ?: throw IOException("Bu telefonda Bluetooth yok")
         val device = a.getRemoteDevice(address)
-        a.cancelDiscovery()
+        // Stopping a running scan makes the connection faster and more reliable, but on
+        // Android 12+ it needs BLUETOOTH_SCAN. Without it we just skip this step.
+        try {
+            if (a.isDiscovering) a.cancelDiscovery()
+        } catch (_: SecurityException) {
+        }
         val socket: BluetoothSocket = try {
             device.createRfcommSocketToServiceRecord(SPP_UUID).also { it.connect() }
         } catch (e: IOException) {
             // Some cheap adapters only accept an insecure socket.
             device.createInsecureRfcommSocketToServiceRecord(SPP_UUID).also { it.connect() }
+        } catch (e: SecurityException) {
+            throw IOException("Bluetooth izni yok. Ayarlar > Uygulamalar > Golf OBD > İzinler'den \"Yakındaki cihazlar\" iznini aç.")
         }
         StreamElmIo(socket.inputStream, socket.outputStream) { runCatching { socket.close() } }
     }

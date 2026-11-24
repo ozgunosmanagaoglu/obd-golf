@@ -51,16 +51,23 @@ import app.obdgolf.ui.ObdTheme
 class MainActivity : ComponentActivity() {
     private val vm: ObdViewModel by viewModels()
 
-    private val askBluetooth = registerForActivityResult(ActivityResultContracts.RequestPermission()) { vm.onReady() }
+    private val askBluetooth =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+            if (result.values.any { !it }) vm.onPermissionDenied()
+            vm.onReady()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
-        ) {
-            askBluetooth.launch(Manifest.permission.BLUETOOTH_CONNECT)
+        val missing = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            listOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN).filter {
+                ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+            }
+        } else emptyList()
+        if (missing.isNotEmpty()) {
+            askBluetooth.launch(missing.toTypedArray())
         } else {
             vm.onReady()
         }
