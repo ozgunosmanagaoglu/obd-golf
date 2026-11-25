@@ -134,7 +134,7 @@ private fun DriveCard(d: Drive, onClick: () -> Unit) {
             if (d.demo) Text("DEMO", color = Color(0xFFFF8A95), fontFamily = Sora, fontSize = 10.sp, letterSpacing = 1.5.sp,
                 modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFF3A0A10)).padding(horizontal = 8.dp, vertical = 3.dp))
         }
-        Sparkline(d.samples.map { LocalUnits.current.speed(it.speedKmh)!!.toFloat() }, Color(0xFFE3001B), Modifier.fillMaxWidth().height(36.dp))
+        Sparkline(d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, Color(0xFFE3001B), Modifier.fillMaxWidth().height(36.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             Stat("%.1f ${LocalUnits.current.distanceUnit}".format(LocalUnits.current.distance(d.distanceKm)))
             Stat(duration(d.durationSec))
@@ -182,9 +182,9 @@ private fun DriveDetail(d: Drive, onBack: () -> Unit, onDelete: () -> Unit) {
                 row.forEach { (l, v, u) -> SummaryTile(l, v, if (v == "—") "" else u, Modifier.weight(1f)) }
             }
         }
-        ChartCard("HIZ · ${LocalUnits.current.speedUnit}", d.samples.map { LocalUnits.current.speed(it.speedKmh)!!.toFloat() }, Color(0xFFE3001B))
+        ChartCard("HIZ · ${LocalUnits.current.speedUnit}", d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, Color(0xFFE3001B))
         ChartCard("DEVİR · rpm", d.samples.map { it.rpm.toFloat() }, C.Text)
-        ChartCard("SU SICAKLIĞI · ${LocalUnits.current.tempUnit}", d.samples.mapNotNull { LocalUnits.current.temp(it.coolantC)?.toFloat() }, Blue)
+        ChartCard("SU SICAKLIĞI · ${LocalUnits.current.tempUnit}", d.samples.mapNotNull { LocalUnits.current.temp(it.coolantC?.toDouble())?.toFloat() }, Blue)
     }
     if (confirm) {
         AlertDialog(
