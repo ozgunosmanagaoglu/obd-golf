@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.obdgolf.bt.BluetoothConnector
+import app.obdgolf.bt.BluetoothPermissionException
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
 import app.obdgolf.core.DemoElmIo
@@ -131,12 +132,17 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** The user said no to a Bluetooth permission: tell them how to fix it. */
-    fun onPermissionDenied() {
-        if (job == null) {
-            _link.value = LinkState.Failed(
-                "Bluetooth izni verilmedi. Ayarlar > Uygulamalar > Golf OBD > İzinler'den \"Yakındaki cihazlar\" iznini aç."
-            )
+    private val _permissionMissing = MutableStateFlow(false)
+    /** True while a "Nearby devices" permission is missing; the Connect screen then shows an "İzin ver" button. */
+    val permissionMissing: StateFlow<Boolean> = _permissionMissing.asStateFlow()
+
+    /** The activity re-checks permissions on start, on resume and after the system dialog. */
+    fun setPermissionMissing(missing: Boolean) {
+        _permissionMissing.value = missing
+        if (missing && job == null) {
+            _link.value = LinkState.Failed("Bluetooth izni verilmedi. Aşağıdaki \"İzin ver\" düğmesine bas.")
+        } else if (!missing && _link.value is LinkState.Failed && job == null) {
+            _link.value = LinkState.Disconnected
         }
     }
 
@@ -192,6 +198,16 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 } catch (e: CancellationException) {
                     throw e
+                } catch (e: BluetoothPermissionException) {
+                    // Retrying cannot help until the user grants the permission.
+                    session?.close()
+                    session = null
+                    saveDrive(recorder?.finish())
+                    recorder = null
+                    _permissionMissing.value = true
+                    _link.value = LinkState.Failed(e.message ?: "Bluetooth izni yok")
+                    job = null
+                    return@launch
                 } catch (e: Exception) {
                     session?.close()
                     session = null

@@ -17,6 +17,10 @@ data class PairedDevice(val name: String, val address: String) {
         get() = listOf("OBD", "VGATE", "ICAR", "ELM", "V-LINK").any { name.uppercase().contains(it) }
 }
 
+/** Android blocked the connection because a "Nearby devices" permission is missing. */
+class BluetoothPermissionException(cause: SecurityException) :
+    IOException("Bluetooth izni yok. Aşağıdaki \"İzin ver\" düğmesine bas.", cause)
+
 /** Classic Bluetooth (SPP) link to an ELM327 adapter such as the Vgate iCar Pro BT 3.0. */
 @SuppressLint("MissingPermission") // callers check BLUETOOTH_CONNECT first
 class BluetoothConnector(context: Context) {
@@ -45,7 +49,7 @@ class BluetoothConnector(context: Context) {
             // Some cheap adapters only accept an insecure socket.
             device.createInsecureRfcommSocketToServiceRecord(SPP_UUID).also { it.connect() }
         } catch (e: SecurityException) {
-            throw IOException("Bluetooth izni yok. Ayarlar > Uygulamalar > Golf OBD > İzinler'den \"Yakındaki cihazlar\" iznini aç.")
+            throw BluetoothPermissionException(e)
         }
         StreamElmIo(socket.inputStream, socket.outputStream) { runCatching { socket.close() } }
     }
