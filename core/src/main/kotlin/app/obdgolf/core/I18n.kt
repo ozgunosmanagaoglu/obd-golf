@@ -200,6 +200,15 @@ enum class Str(val en: String) {
     CU_AIRBAG("Airbag"),
     CU_GATEWAY("Gateway"),
     CU_STEERING("Steering"),
+    DTC_SEV_STOP("Stop driving"),
+    DTC_SEV_SOON("Check soon"),
+    DTC_SEV_LATER("Can wait"),
+    DTC_ADVICE_STOP("Stop when it is safe and switch the engine off. Driving on can damage the engine."),
+    DTC_ADVICE_SOON("Drive gently and have it checked in the next few days."),
+    DTC_ADVICE_LATER("Safe to drive. Have it fixed at the next service; it may fail an emissions inspection."),
+    DTC_ADVICE_MISFIRE("If the engine warning light flashes, slow down and stop: misfires can damage the catalytic converter."),
+    DTC_SEV_SUMMARY("Most urgent: {0}"),
+    DTC_SEV_DISCLAIMER("A guide from the code alone, not a mechanic's diagnosis."),
 
     // Connection screen
     CONNECTED_WITH("Connected · {0}"),
