@@ -48,9 +48,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val Label = Color(0xFF9A9EA6)
-private val Glass = Color(0x0AFFFFFF)
-private val GlassLine = Color(0x12FFFFFF)
+private val Label: Color get() = C.Muted
+private val Glass: Color get() = C.Text.copy(alpha = 0.04f)
+private val GlassLine: Color get() = C.Text.copy(alpha = 0.07f)
 private val Blue = Color(0xFF5AA9FF)
 
 private val timeFmt = SimpleDateFormat("HH:mm", Locale.ROOT)
@@ -85,7 +85,7 @@ fun HistoryScreen(drives: List<Drive>, onDelete: (Drive) -> Unit) {
     }
 
     LazyColumn(
-        Modifier.fillMaxSize().background(Color(0xFF050608)),
+        Modifier.fillMaxSize().background(C.Bg),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 22.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -149,7 +149,7 @@ private fun DriveCard(d: Drive, onClick: () -> Unit) {
             if (d.demo) Text("DEMO", color = Color(0xFFFF8A95), fontFamily = Sora, fontSize = 10.sp, letterSpacing = 1.5.sp,
                 modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFF3A0A10)).padding(horizontal = 8.dp, vertical = 3.dp))
         }
-        Sparkline(d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, Color(0xFFE3001B), Modifier.fillMaxWidth().height(36.dp))
+        Sparkline(d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, C.Red, Modifier.fillMaxWidth().height(36.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             Stat("%.1f ${LocalUnits.current.distanceUnit}".format(LocalUnits.current.distance(d.distanceKm)))
             Stat(duration(d.durationSec))
@@ -159,19 +159,19 @@ private fun DriveCard(d: Drive, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Stat(text: String) = Text(text, color = Color(0xFFD7D9DE), fontFamily = Sora, fontSize = 13.sp)
+private fun Stat(text: String) = Text(text, color = C.Text, fontFamily = Sora, fontSize = 13.sp)
 
 @Composable
 private fun DriveDetail(d: Drive, onBack: () -> Unit, onDelete: () -> Unit) {
     var confirm by remember { mutableStateOf(false) }
     val dayFmt = dayFormat()
     Column(
-        Modifier.fillMaxSize().background(Color(0xFF050608)).verticalScroll(rememberScrollState())
+        Modifier.fillMaxSize().background(C.Bg).verticalScroll(rememberScrollState())
             .padding(horizontal = 22.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("‹ " + s(Str.TAB_HISTORY), color = Color(0xFFFF4D5E), fontFamily = Sora, fontSize = 14.sp,
+            Text("‹ " + s(Str.TAB_HISTORY), color = C.Alarm, fontFamily = Sora, fontSize = 14.sp,
                 modifier = Modifier.heightIn(min = 44.dp).clickable(onClick = onBack).padding(vertical = 12.dp, horizontal = 4.dp).weight(1f))
             Text(s(Str.DELETE), color = Label, fontFamily = Sora, fontSize = 14.sp,
                 modifier = Modifier.heightIn(min = 44.dp).clickable { confirm = true }.padding(12.dp))
@@ -198,7 +198,7 @@ private fun DriveDetail(d: Drive, onBack: () -> Unit, onDelete: () -> Unit) {
                 row.forEach { (l, v, u) -> SummaryTile(l, v, if (v == "—") "" else u, Modifier.weight(1f)) }
             }
         }
-        ChartCard("${caps(Str.SPEED)} · ${LocalUnits.current.speedUnit}", d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, Color(0xFFE3001B))
+        ChartCard("${caps(Str.SPEED)} · ${LocalUnits.current.speedUnit}", d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, C.Red)
         ChartCard("${caps(Str.RPM)} · rpm", d.samples.map { it.rpm.toFloat() }, C.Text)
         ChartCard("${caps(Str.COOLANT_TEMP)} · ${LocalUnits.current.tempUnit}", d.samples.mapNotNull { LocalUnits.current.temp(it.coolantC?.toDouble())?.toFloat() }, Blue)
     }
@@ -207,7 +207,7 @@ private fun DriveDetail(d: Drive, onBack: () -> Unit, onDelete: () -> Unit) {
             onDismissRequest = { confirm = false },
             title = { Text(s(Str.DELETE_DRIVE_TITLE)) },
             text = { Text(s(Str.DELETE_DRIVE_BODY)) },
-            confirmButton = { TextButton(onClick = { confirm = false; onDelete() }) { Text(s(Str.DELETE), color = Color(0xFFFF4D5E)) } },
+            confirmButton = { TextButton(onClick = { confirm = false; onDelete() }) { Text(s(Str.DELETE), color = C.Alarm) } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text(s(Str.CANCEL)) } },
         )
     }

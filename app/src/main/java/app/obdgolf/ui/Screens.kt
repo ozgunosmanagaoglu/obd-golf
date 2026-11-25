@@ -80,34 +80,13 @@ fun LinkChip(link: LinkState, onClick: () -> Unit) {
         LinkState.Disconnected -> C.Dim to s(Str.NOT_CONNECTED)
     }
     Row(
-        Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(22.dp)).background(Color(0xFF1A1C20))
+        Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(22.dp)).background(C.Raised)
             .clickable(onClick = onClick).padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         StatusDot(color)
         Text(text, color = C.Text, fontSize = 13.sp)
-    }
-}
-
-@Composable
-fun DashboardScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
-        Header(link, onLinkClick)
-        RevGauge(d.rpm, d.speedKmh, diameter = 300.dp, stroke = 16.dp, big = 64.sp, small = 13.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ValueTile(s(Str.COOLANT_TEMP), LocalUnits.current.temp(d.coolantC).fmt(), LocalUnits.current.tempUnit, Modifier.weight(1f),
-                bar = ((d.coolantC ?: 0.0) / 130).toFloat(), barColor = coolantColor(d.coolantC))
-            ValueTile(s(Str.BATTERY_VOLTAGE), d.batteryV.fmt(1), "V", Modifier.weight(1f),
-                bar = (((d.batteryV ?: 11.0) - 11) / 4).toFloat(), barColor = voltageColor(d.batteryV))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ValueTile(s(Str.INTAKE_TEMP), LocalUnits.current.temp(d.intakeC).fmt(), LocalUnits.current.tempUnit, Modifier.weight(1f))
-            ValueTile(s(Str.ENGINE_LOAD), d.loadPct.fmt(), "%", Modifier.weight(1f))
-        }
     }
 }
 
@@ -223,6 +202,8 @@ fun ConnectScreen(
     onLanguage: (Lang?) -> Unit,
     batteryUnrestricted: Boolean = true,
     onOpenBattery: () -> Unit = {},
+    theme: ThemeMode = ThemeMode.DARK,
+    onTheme: (ThemeMode) -> Unit = {},
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -247,7 +228,7 @@ fun ConnectScreen(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = C.Red),
                     ) {
-                        Text(s(Str.ALLOW), color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text(s(Str.ALLOW), color = C.OnAccent, fontWeight = FontWeight.SemiBold)
                     }
                     Text(
                         s(Str.ALLOW_HINT),
@@ -270,7 +251,7 @@ fun ConnectScreen(
             AdapterType.CLASSIC -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SectionLabel(s(Str.CLASSIC_PAIRED), Modifier.weight(1f))
-                    Text(s(Str.REFRESH), color = Color(0xFFFF4D5E), fontSize = 13.sp,
+                    Text(s(Str.REFRESH), color = C.Alarm, fontSize = 13.sp,
                         modifier = Modifier.clickable(onClick = onRefresh).padding(8.dp))
                 }
                 Card {
@@ -300,7 +281,7 @@ fun ConnectScreen(
             AdapterType.BLE -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SectionLabel(s(Str.BLE_ADAPTER), Modifier.weight(1f))
-                    Text(if (bleScanning) s(Str.SEARCHING) else s(Str.SEARCH), color = Color(0xFFFF4D5E), fontSize = 13.sp,
+                    Text(if (bleScanning) s(Str.SEARCHING) else s(Str.SEARCH), color = C.Alarm, fontSize = 13.sp,
                         modifier = Modifier.clickable(enabled = !bleScanning, onClick = onScanBle).padding(8.dp))
                 }
                 Card {
@@ -361,7 +342,7 @@ fun ConnectScreen(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = C.Red),
                         ) {
-                            Text(s(Str.WIFI_CONNECT), color = Color.White, fontWeight = FontWeight.SemiBold)
+                            Text(s(Str.WIFI_CONNECT), color = C.OnAccent, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -377,6 +358,10 @@ fun ConnectScreen(
 
         SectionLabel(s(Str.LANGUAGE))
         LanguagePicker(language, onLanguage)
+
+        SectionLabel(s(Str.THEME))
+        val strings = LocalStrings.current
+        Segmented(ThemeMode.entries, theme, { strings[it.label] }, onTheme)
 
         SectionLabel(s(Str.UNITS))
         Card {
@@ -430,7 +415,7 @@ private fun LanguagePicker(selected: Lang?, onSelect: (Lang?) -> Unit) = Card {
             val on = lang == selected
             Text(
                 lang?.nativeName ?: s(Str.LANGUAGE_SYSTEM),
-                color = if (on) Color.White else C.Muted,
+                color = if (on) C.OnAccent else C.Muted,
                 fontSize = 13.sp,
                 fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
                 modifier = Modifier.clip(RoundedCornerShape(10.dp))
@@ -451,7 +436,7 @@ internal fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, 
         val on = t == selected
         Text(
             label(t),
-            color = if (on) Color.White else C.Muted,
+            color = if (on) C.OnAccent else C.Muted,
             fontSize = 13.sp,
             fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
             textAlign = TextAlign.Center,
@@ -474,38 +459,3 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
 @Composable
 fun Card(modifier: Modifier = Modifier, content: @Composable () -> Unit) =
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Card)) { content() }
-
-/** Landscape layout for the permanent in-car screen. */
-@Composable
-fun CarScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Badge(Brand.BADGE)
-            Text(Brand.TITLE, color = C.Text, fontWeight = FontWeight.Bold, fontSize = 20.sp,
-                modifier = Modifier.padding(start = 12.dp).weight(1f))
-            Text(s(Str.OUTSIDE_SHORT, "${LocalUnits.current.temp(d.ambientC).fmt()} ${LocalUnits.current.tempUnit}"), color = C.Muted, fontSize = 15.sp, modifier = Modifier.padding(end = 16.dp))
-            LinkChip(link, onLinkClick)
-        }
-        Spacer(Modifier.padding(6.dp))
-        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.width(400.dp).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                RevGauge(d.rpm, d.speedKmh, diameter = 380.dp, stroke = 18.dp, big = 88.sp, small = 15.sp)
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                val tiles = listOf(
-                    Triple(s(Str.COOLANT_TEMP), LocalUnits.current.temp(d.coolantC).fmt(), LocalUnits.current.tempUnit),
-                    Triple(s(Str.BATTERY), d.batteryV.fmt(1), "V"),
-                    Triple(s(Str.ENGINE_LOAD), d.loadPct.fmt(), "%"),
-                    Triple(s(Str.INTAKE_TEMP), LocalUnits.current.temp(d.intakeC).fmt(), LocalUnits.current.tempUnit),
-                    Triple(s(Str.ACCELERATOR), d.throttlePct.fmt(), "%"),
-                    Triple(s(Str.OUTSIDE_TEMP), LocalUnits.current.temp(d.ambientC).fmt(), LocalUnits.current.tempUnit),
-                )
-                tiles.chunked(2).forEach { pair ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        pair.forEach { (l, v, u) -> ValueTile(l, v, u, Modifier.weight(1f), valueSize = 40.sp) }
-                    }
-                }
-            }
-        }
-    }
-}

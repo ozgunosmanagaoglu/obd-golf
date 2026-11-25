@@ -41,6 +41,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
+import app.obdgolf.core.Dashboard
+import app.obdgolf.core.DashboardCodec
+import app.obdgolf.core.MetricHistory
+import app.obdgolf.ui.ThemeMode
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -333,6 +337,38 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putBoolean("auto", on).apply()
     }
 
+    private val _theme = MutableStateFlow(ThemeMode.byId(prefs.getString("theme", null)))
+    val theme: StateFlow<ThemeMode> = _theme.asStateFlow()
+
+    fun setTheme(mode: ThemeMode) {
+        _theme.value = mode
+        prefs.edit().putString("theme", mode.id).apply()
+    }
+
+    /** The user's dashboard, saved as plain text (see [DashboardCodec]) after every edit. */
+    private val _dashboard = MutableStateFlow(DashboardCodec.decode(prefs.getString("dashboard", null)) ?: Dashboard.DEFAULT)
+    val dashboard: StateFlow<Dashboard> = _dashboard.asStateFlow()
+
+    fun setDashboard(d: Dashboard) {
+        _dashboard.value = d
+        prefs.edit().putString("dashboard", DashboardCodec.encode(d)).apply()
+    }
+
+    private val metricHistory = MetricHistory()
+    private val _history = MutableStateFlow<Map<String, List<Double>>>(emptyMap())
+    /** The last minute of every value on the dashboard, for graph tiles. */
+    val history: StateFlow<Map<String, List<Double>>> = _history.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _data.collect { d ->
+                val metrics = _dashboard.value.pages.flatMap { p -> p.gauges.map { it.metric } }.toSet()
+                metricHistory.add(System.currentTimeMillis(), d, metrics)
+                _history.value = metricHistory.snapshot()
+            }
+        }
+    }
+
     // The notification text follows the link: connecting → connected → waiting for the car.
     init {
         viewModelScope.launch {
@@ -380,6 +416,8 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         session?.close()
         session = null
         _link.value = LinkState.Disconnected
+        // Old values would look live on the dashboard; show "no data" until the car answers again.
+        _data.value = CarData()
         LinkService.stop(getApplication())
         _vehicle.value = null
         _faults.value = FaultState.Idle
@@ -439,6 +477,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     session?.close()
                     session = null
                     saveDrive(recorder?.finish())
+                    _data.value = CarData()
                     _link.value = LinkState.Failed(e.toMsg())
                     // Car off or out of range: keep retrying quietly, slower each time.
                     attempt++

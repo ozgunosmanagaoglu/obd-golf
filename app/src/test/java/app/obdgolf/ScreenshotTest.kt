@@ -11,6 +11,13 @@ import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
+import app.obdgolf.core.Dashboard
+import app.obdgolf.core.Metric
+import app.obdgolf.core.Preset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import app.obdgolf.ui.ThemeMode
+import kotlin.math.sin
 import app.obdgolf.core.Dtc
 import app.obdgolf.core.DtcKind
 import app.obdgolf.core.FaultReport
@@ -23,7 +30,6 @@ import app.obdgolf.core.Units
 import app.obdgolf.core.VehicleInfo
 import app.obdgolf.core.WifiAddress
 import app.obdgolf.ui.C
-import app.obdgolf.ui.CarScreen
 import app.obdgolf.ui.ConnectScreen
 import app.obdgolf.ui.DashboardScreen
 import app.obdgolf.ui.DetailsScreen
@@ -46,7 +52,7 @@ import org.robolectric.annotation.GraphicsMode
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34])
-abstract class ScreenshotTest(private val device: String, private val lang: Lang) {
+abstract class ScreenshotTest(private val device: String, private val lang: Lang, private val car: Boolean = false) {
     @get:Rule val compose = createComposeRule()
 
     private val data = CarData(
@@ -57,18 +63,59 @@ abstract class ScreenshotTest(private val device: String, private val lang: Lang
     private val link = LinkState.Connected("V-LINK", "ELM327 v2.3 · CAN 11 bit 500k")
     private val vehicle = VehicleInfo("WVWZZZ1KZBP000000", "Volkswagen", MakerGroup.VAG, 2011)
 
-    private fun shot(name: String, content: @Composable () -> Unit) {
+    /** A minute of made-up but plausible history, so graph tiles show a line. */
+    private val history: Map<String, List<Double>> = Metric.all.associate { m ->
+        val now = m.read(data) ?: ((m.range.start + m.range.endInclusive) / 2)
+        val span = (m.range.endInclusive - m.range.start) * 0.08
+        m.id to List(60) { i -> now + span * sin(i / 6.0) - span * (60 - i) / 120.0 }
+    }
+
+    private fun shot(
+        name: String,
+        theme: ThemeMode = ThemeMode.DARK,
+        fontScale: Float = 1f,
+        content: @Composable () -> Unit,
+    ) {
         compose.setContent {
-            CompositionLocalProvider(LocalStrings provides Strings(lang), LocalUnits provides Units()) {
-                ObdTheme { Box(Modifier.fillMaxSize().background(C.Bg)) { content() } }
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalStrings provides Strings(lang),
+                LocalUnits provides Units(),
+                LocalDensity provides Density(density.density, fontScale),
+            ) {
+                ObdTheme(theme) { Box(Modifier.fillMaxSize().background(C.Bg)) { content() } }
             }
         }
         compose.onRoot().captureRoboImage("build/outputs/roborazzi/$device/$name.png")
     }
 
-    @Test fun dashboard() = shot("1-dashboard") {
-        AppFrame(Tab.Dashboard, {}) { DashboardScreen(data, link) {} }
+    /** The dashboard as the app shows it on this device: in the tab frame on phones and tablets, full screen in a car. */
+    @Composable
+    private fun Dash(dash: Dashboard, d: CarData = data, l: LinkState = link, editing: Boolean = false) {
+        val screen: @Composable () -> Unit = { DashboardScreen(d, l, dash, history, {}, {}, carScreen = car, startEditing = editing) }
+        if (car) screen() else AppFrame(Tab.Dashboard, {}, screen)
     }
+
+    /** The preset with its page [page] moved to the front, since a screenshot only shows the first page. */
+    private fun Preset.page(page: Int): Dashboard = dashboard.let { it.copy(pages = it.pages.drop(page) + it.pages.take(page)) }
+
+    @Test fun minimal() = shot("1-minimal") { Dash(Preset.MINIMAL.dashboard) }
+    @Test fun minimal2() = shot("1-minimal-p2") { Dash(Preset.MINIMAL.page(1)) }
+    @Test fun sport() = shot("1-sport") { Dash(Preset.SPORT.dashboard) }
+    @Test fun sport2() = shot("1-sport-p2") { Dash(Preset.SPORT.page(1)) }
+    @Test fun eco() = shot("1-eco") { Dash(Preset.ECO.dashboard) }
+    @Test fun eco2() = shot("1-eco-p2") { Dash(Preset.ECO.page(1)) }
+    @Test fun diagnostic() = shot("1-diagnostic") { Dash(Preset.DIAGNOSTIC.dashboard) }
+    @Test fun diagnostic2() = shot("1-diagnostic-p2") { Dash(Preset.DIAGNOSTIC.page(1)) }
+
+    @Test fun warning() = shot("1-state-warning") {
+        Dash(Preset.MINIMAL.dashboard, data.copy(coolantC = 109.0, batteryV = 11.4))
+    }
+    @Test fun offline() = shot("1-state-not-connected") { Dash(Preset.MINIMAL.dashboard, CarData(), LinkState.Disconnected) }
+    @Test fun editing() = shot("1-state-editing") { Dash(Preset.SPORT.dashboard, editing = true) }
+    @Test fun light() = shot("1-theme-light", ThemeMode.LIGHT) { Dash(Preset.SPORT.dashboard) }
+    @Test fun contrast() = shot("1-theme-high-contrast", ThemeMode.HIGH_CONTRAST) { Dash(Preset.SPORT.dashboard) }
+    @Test fun bigFont() = shot("1-font-1.3x", fontScale = 1.3f) { Dash(Preset.DIAGNOSTIC.dashboard) }
 
     @Test fun details() = shot("2-details") {
         AppFrame(Tab.Details, {}) { DetailsScreen(data, vehicle, link.adapterVersion, measuring = true) }
@@ -99,7 +146,6 @@ abstract class ScreenshotTest(private val device: String, private val lang: Lang
         }
     }
 
-    @Test fun carScreen() = shot("5-car-screen") { CarScreen(data, link) {} }
 }
 
 @Config(qualifiers = "w360dp-h640dp-port-xhdpi")
@@ -109,7 +155,7 @@ class SmallPhoneScreenshots : ScreenshotTest("small-phone-360x640", Lang.TR)
 class TabletScreenshots : ScreenshotTest("tablet-800x1280", Lang.EN)
 
 @Config(qualifiers = "w1024dp-h600dp-land-mdpi")
-class HeadUnitScreenshots : ScreenshotTest("head-unit-1024x600", Lang.PL)
+class HeadUnitScreenshots : ScreenshotTest("head-unit-1024x600", Lang.PL, car = true)
 
 @Config(qualifiers = "w1280dp-h720dp-land-mdpi")
-class WideHeadUnitScreenshots : ScreenshotTest("head-unit-1280x720", Lang.DE)
+class WideHeadUnitScreenshots : ScreenshotTest("head-unit-1280x720", Lang.DE, car = true)

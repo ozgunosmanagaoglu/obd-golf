@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.ui.C
-import app.obdgolf.ui.CarScreen
 import app.obdgolf.ui.ConnectScreen
 import app.obdgolf.ui.DashboardScreen
 import app.obdgolf.ui.DetailsScreen
@@ -146,7 +145,8 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            ObdTheme {
+            val theme by vm.theme.collectAsState()
+            ObdTheme(theme) {
                 App(
                     vm,
                     onConnect = ::connectWithPermission,
@@ -259,18 +259,21 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val units by vm.units.collectAsState()
     val language by vm.language.collectAsState()
     val batteryUnrestricted by vm.batteryUnrestricted.collectAsState()
+    val dashboard by vm.dashboard.collectAsState()
+    val history by vm.history.collectAsState()
+    val theme by vm.theme.collectAsState()
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     CompositionLocalProvider(LocalUnits provides units) {
     Box(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding().navigationBarsPadding()) {
         if (landscape && tab == Tab.Dashboard) {
-            CarScreen(data, link) { tab = Tab.Connect }
+            DashboardScreen(data, link, dashboard, history, { tab = Tab.Connect }, vm::setDashboard, carScreen = true)
             return@Box
         }
         val screen: @Composable () -> Unit = {
             when (tab) {
-                Tab.Dashboard -> DashboardScreen(data, link) { tab = Tab.Connect }
+                Tab.Dashboard -> DashboardScreen(data, link, dashboard, history, { tab = Tab.Connect }, vm::setDashboard)
                 Tab.Details -> DetailsScreen(
                     data, vehicle, (link as? LinkState.Connected)?.adapterVersion,
                     measuring = measuring && link is LinkState.Connected,
@@ -312,6 +315,8 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                     onLanguage = vm::setLanguage,
                     batteryUnrestricted = batteryUnrestricted,
                     onOpenBattery = vm::openBatterySettings,
+                    theme = theme,
+                    onTheme = vm::setTheme,
                 )
             }
         }
@@ -358,7 +363,7 @@ private fun TabBar(tab: Tab, vertical: Boolean, onSelect: (Tab) -> Unit) {
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = if (vertical) 12.dp else 1.dp),
             colors = ButtonDefaults.textButtonColors(containerColor = if (selected) C.Red else Color.Transparent),
         ) {
-            Text(s(t.label), color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = if (vertical) 13.sp else 11.sp,
+            Text(s(t.label), color = if (selected) C.OnAccent else C.Text, fontSize = if (vertical) 13.sp else 11.sp,
                 maxLines = 1, softWrap = false, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
         }
     }

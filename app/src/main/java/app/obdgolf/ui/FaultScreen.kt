@@ -76,7 +76,7 @@ fun FaultScreen(state: FaultState, link: LinkState, onRead: () -> Unit, onClear:
                 modifier = Modifier.weight(1f).heightIn(min = 52.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = C.Red, disabledContainerColor = C.Track),
-            ) { Text(s(Str.READ_CODES), color = Color.White, fontWeight = FontWeight.SemiBold) }
+            ) { Text(s(Str.READ_CODES), color = C.OnAccent, fontWeight = FontWeight.SemiBold) }
             OutlinedButton(
                 onClick = { confirm = true }, enabled = connected && !busy && report != null,
                 modifier = Modifier.weight(1f).heightIn(min = 52.dp),
@@ -114,7 +114,7 @@ fun FaultScreen(state: FaultState, link: LinkState, onRead: () -> Unit, onClear:
             )
         },
         confirmButton = {
-            TextButton(onClick = { confirm = false; onClear() }) { Text(s(Str.CLEAR), color = Color(0xFFFF4D5E), fontWeight = FontWeight.Bold) }
+            TextButton(onClick = { confirm = false; onClear() }) { Text(s(Str.CLEAR), color = C.Alarm, fontWeight = FontWeight.Bold) }
         },
         dismissButton = { TextButton(onClick = { confirm = false }) { Text(s(Str.CANCEL), color = C.Text) } },
     )
@@ -182,7 +182,7 @@ private fun CodeRow(dtc: Dtc) {
                     .padding(horizontal = 10.dp, vertical = 4.dp),
             )
         }
-        Text(LocalStrings.current.describe(dtc), color = Color(0xFFD6D7DA), fontSize = 14.sp)
+        Text(LocalStrings.current.describe(dtc), color = C.Text, fontSize = 14.sp)
         if (dtc.manufacturerSpecific) Text(s(Str.MANUFACTURER_HINT), color = C.Dim, fontSize = 12.sp)
     }
 }

@@ -50,7 +50,7 @@ fun MeasuringBlockCard(state: BlockState, onRead: (VagUnit, Int) -> Unit) {
             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = C.Red, disabledContainerColor = C.Track),
-        ) { Text(if (busy) s(Str.MB_READING) else s(Str.MB_READ), color = Color.White, fontWeight = FontWeight.SemiBold) }
+        ) { Text(if (busy) s(Str.MB_READING) else s(Str.MB_READ), color = C.OnAccent, fontWeight = FontWeight.SemiBold) }
     }
     when (state) {
         is BlockState.Ready -> Card {
