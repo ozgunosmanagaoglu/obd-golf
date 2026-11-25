@@ -46,6 +46,6 @@ class ElmLogVinTest {
     @Test fun vinReplyIsNeverLogged() = kotlinx.coroutines.runBlocking {
         val log = ElmLog()
         LoggingElmIo(DemoElmIo(), log).exchange("0902")
-        kotlin.test.assertEquals("(VIN gizlendi)", log.snapshot().last().text)
+        kotlin.test.assertEquals("(VIN hidden)", log.snapshot().last().text)
     }
 }

@@ -1,14 +1,13 @@
 package app.obdgolf.core
 
 /** Which list a fault code came from. */
-enum class DtcKind(val label: String) {
-    STORED("Kayıtlı"),      // mode 03: confirmed, usually lights the engine lamp
-    PENDING("Bekleyen"),    // mode 07: seen once, not confirmed yet
-    PERMANENT("Kalıcı"),    // mode 0A: only the car itself can clear these
+enum class DtcKind(val labelKey: Str) {
+    STORED(Str.DTC_STORED),         // mode 03: confirmed, usually lights the engine lamp
+    PENDING(Str.DTC_PENDING),       // mode 07: seen once, not confirmed yet
+    PERMANENT(Str.DTC_PERMANENT),   // mode 0A: only the car itself can clear these
 }
 
 data class Dtc(val code: String, val kind: DtcKind) {
-    val description: String get() = DtcInfo.describe(code)
     val manufacturerSpecific: Boolean get() = DtcInfo.isManufacturerSpecific(code)
 }
 

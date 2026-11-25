@@ -40,6 +40,7 @@ import app.obdgolf.core.Dtc
 import app.obdgolf.core.DtcKind
 import app.obdgolf.core.FaultReport
 import app.obdgolf.core.FreezeFrame
+import app.obdgolf.core.Str
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -57,10 +58,10 @@ fun FaultScreen(state: FaultState, link: LinkState, onRead: () -> Unit, onClear:
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Arıza kodları", color = C.Text, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                Text(s(Str.FAULT_CODES), color = C.Text, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                 Text(
-                    report?.let { "Son okuma " + SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(it.readAtMs)) }
-                        ?: "Motor ve DSG (OBD-II)",
+                    report?.let { s(Str.LAST_READ, SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(it.readAtMs))) }
+                        ?: s(Str.FAULT_SUBTITLE),
                     color = C.Muted, fontSize = 12.sp,
                 )
             }
@@ -75,54 +76,47 @@ fun FaultScreen(state: FaultState, link: LinkState, onRead: () -> Unit, onClear:
                 modifier = Modifier.weight(1f).heightIn(min = 52.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = C.Red, disabledContainerColor = C.Track),
-            ) { Text("Kodları oku", color = Color.White, fontWeight = FontWeight.SemiBold) }
+            ) { Text(s(Str.READ_CODES), color = Color.White, fontWeight = FontWeight.SemiBold) }
             OutlinedButton(
                 onClick = { confirm = true }, enabled = connected && !busy && report != null,
                 modifier = Modifier.weight(1f).heightIn(min = 52.dp),
                 shape = RoundedCornerShape(14.dp),
-            ) { Text("Kodları sil", color = if (connected && report != null) C.Text else C.Dim) }
+            ) { Text(s(Str.CLEAR_CODES), color = if (connected && report != null) C.Text else C.Dim) }
         }
 
         when (state) {
             FaultState.Idle -> Hint(
-                if (connected) "Kontağı aç (motor çalışabilir) ve \"Kodları oku\"ya bas."
-                else "Önce adaptöre bağlan. Araba yanında değilsen Bağlantı sekmesinden demo modunu açıp deneyebilirsin."
+                if (connected) s(Str.FAULT_HINT_CONNECTED, s(Str.READ_CODES))
+                else s(Str.FAULT_HINT_DISCONNECTED)
             )
             is FaultState.Busy -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CircularProgressIndicator(Modifier.size(22.dp), color = C.Red, strokeWidth = 3.dp)
-                Text(state.text, color = C.Muted, fontSize = 14.sp)
+                Text(s(state.text), color = C.Muted, fontSize = 14.sp)
             }
-            is FaultState.Error -> Text(state.message, color = C.Amber, fontSize = 14.sp)
+            is FaultState.Error -> Text(s(state.message), color = C.Amber, fontSize = 14.sp)
             is FaultState.Ready -> {
-                if (state.cleared) Text("Kodlar silindi. Arıza devam ediyorsa bir sonraki sürüşte geri gelir.", color = C.Green, fontSize = 14.sp)
+                if (state.cleared) Text(s(Str.CODES_CLEARED), color = C.Green, fontSize = 14.sp)
                 Codes(state.report)
             }
         }
 
-        Hint(
-            "Bu ekran motor beynini ve OBD'ye cevap veren DSG'yi okur. ABS, airbag, klima gibi diğer beyinler " +
-                "VW'ye özel iletişim ister, o kısım sonraki adımda gelecek."
-        )
+        Hint(s(Str.FAULT_FOOTER))
     }
 
     if (confirm) AlertDialog(
         onDismissRequest = { confirm = false },
         containerColor = C.Card,
-        title = { Text("Kodlar silinsin mi?", color = C.Text) },
+        title = { Text(s(Str.CLEAR_TITLE), color = C.Text) },
         text = {
             Text(
-                "• Motor kapalı, kontak açık olsun.\n" +
-                    "• Kayıtlı ve bekleyen kodlar, freeze frame verisi silinir, arıza lambası söner.\n" +
-                    "• Muayene hazırlık testleri sıfırlanır; birkaç sürüşte kendiliğinden tamamlanır.\n" +
-                    "• Arızayı onarmaz: sorun sürerse kod geri gelir.\n\n" +
-                    "Silmeden önce kodların ekran görüntüsünü almanı öneririm.",
+                s(Str.CLEAR_BODY),
                 color = C.Muted, fontSize = 14.sp,
             )
         },
         confirmButton = {
-            TextButton(onClick = { confirm = false; onClear() }) { Text("Sil", color = Color(0xFFFF4D5E), fontWeight = FontWeight.Bold) }
+            TextButton(onClick = { confirm = false; onClear() }) { Text(s(Str.CLEAR), color = Color(0xFFFF4D5E), fontWeight = FontWeight.Bold) }
         },
-        dismissButton = { TextButton(onClick = { confirm = false }) { Text("Vazgeç", color = C.Text) } },
+        dismissButton = { TextButton(onClick = { confirm = false }) { Text(s(Str.CANCEL), color = C.Text) } },
     )
 }
 
@@ -130,10 +124,10 @@ fun FaultScreen(state: FaultState, link: LinkState, onRead: () -> Unit, onClear:
 private fun MilCard(report: FaultReport?) {
     val mil = report?.mil
     val (color, title, sub) = when {
-        mil == null && report == null -> Triple(C.Track, "Motor arıza lambası", "Henüz okunmadı")
-        mil == null -> Triple(C.Dim, "Motor arıza lambası", "Araba lamba durumunu bildirmedi")
-        mil.milOn -> Triple(C.Amber, "Arıza lambası YANIYOR", "${mil.dtcCount} kayıtlı kod")
-        else -> Triple(C.Green, "Arıza lambası sönük", if (mil.dtcCount == 0) "Kayıtlı kod yok" else "${mil.dtcCount} kayıtlı kod")
+        mil == null && report == null -> Triple(C.Track, s(Str.MIL), s(Str.NOT_READ_YET))
+        mil == null -> Triple(C.Dim, s(Str.MIL), s(Str.MIL_UNKNOWN))
+        mil.milOn -> Triple(C.Amber, s(Str.MIL_ON), s(Str.STORED_CODES, mil.dtcCount))
+        else -> Triple(C.Green, s(Str.MIL_OFF), if (mil.dtcCount == 0) s(Str.NO_STORED_CODES) else s(Str.STORED_CODES, mil.dtcCount))
     }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Card).padding(16.dp),
@@ -158,11 +152,11 @@ private fun Codes(report: FaultReport) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             StatusDot(C.Green)
-            Text("  Hiç arıza kodu yok", color = C.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text("  " + s(Str.NO_CODES), color = C.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
         return
     }
-    SectionLabel("${report.codes.size} kod bulundu")
+    SectionLabel(s(Str.CODES_FOUND, report.codes.size))
     Card {
         report.codes.forEachIndexed { i, dtc ->
             if (i > 0) HorizontalDivider(color = C.Divider)
@@ -183,27 +177,27 @@ private fun CodeRow(dtc: Dtc) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(dtc.code, color = C.Text, fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.weight(1f))
             Text(
-                dtc.kind.label, color = kindColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                LocalStrings.current.dtcKind(dtc.kind), color = kindColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(kindColor.copy(alpha = 0.15f))
                     .padding(horizontal = 10.dp, vertical = 4.dp),
             )
         }
-        Text(dtc.description, color = Color(0xFFD6D7DA), fontSize = 14.sp)
-        if (dtc.manufacturerSpecific) Text("Ayrıntı için VCDS / OBDeleven ile bakmak gerekebilir.", color = C.Dim, fontSize = 12.sp)
+        Text(LocalStrings.current.describe(dtc), color = Color(0xFFD6D7DA), fontSize = 14.sp)
+        if (dtc.manufacturerSpecific) Text(s(Str.MANUFACTURER_HINT), color = C.Dim, fontSize = 12.sp)
     }
 }
 
 @Composable
 private fun FreezeCard(f: FreezeFrame) {
-    SectionLabel("Arıza anındaki değerler" + (f.dtc?.let { " · $it" } ?: ""))
+    SectionLabel(s(Str.FREEZE_FRAME) + (f.dtc?.let { " · $it" } ?: ""))
     Card {
         listOf(
-            "Devir" to "${f.rpm.fmt()} rpm",
-            "Hız" to "${LocalUnits.current.speed(f.speedKmh).fmt()} ${LocalUnits.current.speedUnit}",
-            "Su sıcaklığı" to "${LocalUnits.current.temp(f.coolantC).fmt()} ${LocalUnits.current.tempUnit}",
-            "Motor yükü" to "${f.loadPct.fmt()} %",
-            "Gaz pedalı" to "${f.throttlePct.fmt()} %",
-            "Emme sıcaklığı" to "${LocalUnits.current.temp(f.intakeC).fmt()} ${LocalUnits.current.tempUnit}",
+            s(Str.RPM) to "${f.rpm.fmt()} rpm",
+            s(Str.SPEED) to "${LocalUnits.current.speed(f.speedKmh).fmt()} ${LocalUnits.current.speedUnit}",
+            s(Str.COOLANT_TEMP) to "${LocalUnits.current.temp(f.coolantC).fmt()} ${LocalUnits.current.tempUnit}",
+            s(Str.ENGINE_LOAD) to "${f.loadPct.fmt()} %",
+            s(Str.ACCELERATOR) to "${f.throttlePct.fmt()} %",
+            s(Str.INTAKE_TEMP) to "${LocalUnits.current.temp(f.intakeC).fmt()} ${LocalUnits.current.tempUnit}",
         ).forEachIndexed { i, (l, v) ->
             if (i > 0) HorizontalDivider(color = C.Divider)
             RowItem(l, if (v.startsWith("—")) "—" else v)

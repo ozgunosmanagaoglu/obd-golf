@@ -110,7 +110,7 @@ class ObdSession(
             }
             if (!counts) return value
             if (value == null) {
-                if (++misses >= maxMisses) throw java.io.IOException("Araçla bağlantı koptu. Kontak kapandı mı?")
+                if (++misses >= maxMisses) throw LocalizedIOException(Str.VEHICLE_LINK_LOST)
             } else {
                 misses = 0
             }

@@ -57,7 +57,7 @@ class LoggingElmIo(private val io: ElmIo, private val log: ElmLog) : ElmIo {
         return try {
             io.exchange(command, timeoutMs).also {
                 // The VIN identifies one car, so a shared log never carries it.
-                log.add(ElmLog.Kind.RECEIVED, if (command == "0902") "(VIN gizlendi)" else ElmLog.visible(it))
+                log.add(ElmLog.Kind.RECEIVED, if (command == "0902") "(VIN hidden)" else ElmLog.visible(it))
             }
         } catch (e: Exception) {
             log.add(ElmLog.Kind.ERROR, e.message ?: e.javaClass.simpleName)

@@ -3,7 +3,6 @@ package app.obdgolf.core
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.withTimeoutOrNull
-import java.io.IOException
 
 /**
  * A [Transport] for links that push bytes to us in callbacks, like Bluetooth LE notifications.
@@ -18,7 +17,7 @@ class PushTransport(
 ) : Transport {
 
     private val incoming = Channel<ByteArray>(Channel.UNLIMITED)
-    @Volatile private var closedReason: String? = null
+    @Volatile private var closedReason: Str? = null
 
     /** Called from the platform callback thread with each received packet. */
     fun onBytes(bytes: ByteArray) {
@@ -26,13 +25,13 @@ class PushTransport(
     }
 
     /** The link dropped: pending and future reads fail with [reason]. */
-    fun onClosed(reason: String) {
+    fun onClosed(reason: Str) {
         if (closedReason == null) closedReason = reason
         incoming.close()
     }
 
     override suspend fun write(data: ByteArray) {
-        closedReason?.let { throw IOException(it) }
+        closedReason?.let { throw LocalizedIOException(it) }
         var i = 0
         while (i < data.size) {
             val end = minOf(i + chunkSize.coerceAtLeast(1), data.size)
@@ -44,12 +43,12 @@ class PushTransport(
     override suspend fun read(timeoutMs: Long): ByteArray {
         val first = incoming.tryReceive().getOrNull()
             ?: run {
-                if (incoming.isClosedForReceive) throw IOException(closedReason ?: "Bağlantı kapandı")
+                if (incoming.isClosedForReceive) throw LocalizedIOException(closedReason ?: Str.CONNECTION_CLOSED)
                 if (timeoutMs <= 0) return ByteArray(0)
                 try {
                     withTimeoutOrNull(timeoutMs) { incoming.receive() }
                 } catch (_: ClosedReceiveChannelException) {
-                    throw IOException(closedReason ?: "Bağlantı kapandı")
+                    throw LocalizedIOException(closedReason ?: Str.CONNECTION_CLOSED)
                 } ?: return ByteArray(0)
             }
         // Join everything that is already waiting, so callers see fewer, bigger pieces.
@@ -62,7 +61,7 @@ class PushTransport(
     }
 
     override fun close() {
-        onClosed("Bağlantı kapatıldı")
+        onClosed(Str.CONNECTION_CLOSED)
         onClose()
     }
 }

@@ -44,7 +44,13 @@ import app.obdgolf.LinkState
 import app.obdgolf.ble.BleDevice
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
+import app.obdgolf.DEMO
+import app.obdgolf.core.Lang
+import app.obdgolf.core.Msg
+import app.obdgolf.core.Str
 import app.obdgolf.core.PressureUnit
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import app.obdgolf.core.SpeedUnit
 import app.obdgolf.core.TempUnit
 import app.obdgolf.core.Units
@@ -66,10 +72,10 @@ fun Header(link: LinkState, onLinkClick: () -> Unit) {
 @Composable
 fun LinkChip(link: LinkState, onClick: () -> Unit) {
     val (color, text) = when (link) {
-        is LinkState.Connected -> C.Green to if (link.name == "Demo") "Demo" else "Bağlı"
-        is LinkState.Connecting -> C.Amber to "Bağlanıyor"
-        is LinkState.Failed -> C.Amber to "Bekleniyor"
-        LinkState.Disconnected -> C.Dim to "Bağlı değil"
+        is LinkState.Connected -> C.Green to if (link.name == DEMO) DEMO else s(Str.CONNECTED)
+        is LinkState.Connecting -> C.Amber to s(Str.CONNECTING)
+        is LinkState.Failed -> C.Amber to s(Str.WAITING)
+        LinkState.Disconnected -> C.Dim to s(Str.NOT_CONNECTED)
     }
     Row(
         Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(22.dp)).background(Color(0xFF1A1C20))
@@ -91,14 +97,14 @@ fun DashboardScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
         Header(link, onLinkClick)
         RevGauge(d.rpm, d.speedKmh, diameter = 300.dp, stroke = 16.dp, big = 64.sp, small = 13.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ValueTile("Su sıcaklığı", LocalUnits.current.temp(d.coolantC).fmt(), LocalUnits.current.tempUnit, Modifier.weight(1f),
+            ValueTile(s(Str.COOLANT_TEMP), LocalUnits.current.temp(d.coolantC).fmt(), LocalUnits.current.tempUnit, Modifier.weight(1f),
                 bar = ((d.coolantC ?: 0.0) / 130).toFloat(), barColor = coolantColor(d.coolantC))
-            ValueTile("Akü voltajı", d.batteryV.fmt(1), "V", Modifier.weight(1f),
+            ValueTile(s(Str.BATTERY_VOLTAGE), d.batteryV.fmt(1), "V", Modifier.weight(1f),
                 bar = (((d.batteryV ?: 11.0) - 11) / 4).toFloat(), barColor = voltageColor(d.batteryV))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ValueTile("Emme sıcaklığı", LocalUnits.current.temp(d.intakeC).fmt(), LocalUnits.current.tempUnit, Modifier.weight(1f))
-            ValueTile("Motor yükü", d.loadPct.fmt(), "%", Modifier.weight(1f))
+            ValueTile(s(Str.INTAKE_TEMP), LocalUnits.current.temp(d.intakeC).fmt(), LocalUnits.current.tempUnit, Modifier.weight(1f))
+            ValueTile(s(Str.ENGINE_LOAD), d.loadPct.fmt(), "%", Modifier.weight(1f))
         }
     }
 }
@@ -110,16 +116,16 @@ fun DetailsScreen(d: CarData, vehicle: VehicleInfo?, adapterLabel: String?) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Tüm veriler", color = C.Text, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-            Text(d.refreshHz?.let { "Canlı · ${it.fmt(1)} Hz" } ?: "Bekleniyor", color = C.Muted, fontSize = 12.sp)
+            Text(s(Str.ALL_DATA), color = C.Text, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Text(d.refreshHz?.let { s(Str.LIVE_HZ, it.fmt(1)) } ?: s(Str.WAITING), color = C.Muted, fontSize = 12.sp)
         }
         if (vehicle != null || adapterLabel != null) {
-            SectionLabel("Araç")
+            SectionLabel(s(Str.VEHICLE))
             Card {
                 val rows = listOfNotNull(
-                    vehicle?.let { "Araç" to it.label },
+                    vehicle?.let { s(Str.VEHICLE) to (it.label ?: s(Str.UNKNOWN_VEHICLE)) },
                     vehicle?.let { "VIN" to it.vin },
-                    adapterLabel?.let { "Adaptör" to it },
+                    adapterLabel?.let { s(Str.ADAPTER) to it },
                 )
                 rows.forEachIndexed { i, (l, v) ->
                     if (i > 0) HorizontalDivider(color = C.Divider)
@@ -127,17 +133,17 @@ fun DetailsScreen(d: CarData, vehicle: VehicleInfo?, adapterLabel: String?) {
                 }
             }
         }
-        SectionLabel("Standart OBD")
+        SectionLabel(s(Str.STANDARD_OBD))
         Card {
             listOf(
-                "Devir" to "${d.rpm.fmt()} rpm",
-                "Hız" to "${LocalUnits.current.speed(d.speedKmh).fmt()} ${LocalUnits.current.speedUnit}",
-                "Su sıcaklığı" to "${LocalUnits.current.temp(d.coolantC).fmt()} ${LocalUnits.current.tempUnit}",
-                "Emme sıcaklığı" to "${LocalUnits.current.temp(d.intakeC).fmt()} ${LocalUnits.current.tempUnit}",
-                "Dış sıcaklık" to "${LocalUnits.current.temp(d.ambientC).fmt()} ${LocalUnits.current.tempUnit}",
-                "Motor yükü" to "${d.loadPct.fmt()} %",
-                "Gaz pedalı" to "${d.throttlePct.fmt()} %",
-                "Akü voltajı" to "${d.batteryV.fmt(1)} V",
+                s(Str.RPM) to "${d.rpm.fmt()} rpm",
+                s(Str.SPEED) to "${LocalUnits.current.speed(d.speedKmh).fmt()} ${LocalUnits.current.speedUnit}",
+                s(Str.COOLANT_TEMP) to "${LocalUnits.current.temp(d.coolantC).fmt()} ${LocalUnits.current.tempUnit}",
+                s(Str.INTAKE_TEMP) to "${LocalUnits.current.temp(d.intakeC).fmt()} ${LocalUnits.current.tempUnit}",
+                s(Str.OUTSIDE_TEMP) to "${LocalUnits.current.temp(d.ambientC).fmt()} ${LocalUnits.current.tempUnit}",
+                s(Str.ENGINE_LOAD) to "${d.loadPct.fmt()} %",
+                s(Str.ACCELERATOR) to "${d.throttlePct.fmt()} %",
+                s(Str.BATTERY_VOLTAGE) to "${d.batteryV.fmt(1)} V",
             ).forEachIndexed { i, (l, v) ->
                 if (i > 0) HorizontalDivider(color = C.Divider)
                 RowItem(l, if (v.startsWith("—")) "—" else v)
@@ -146,24 +152,24 @@ fun DetailsScreen(d: CarData, vehicle: VehicleInfo?, adapterLabel: String?) {
         // Everything else this car reports, in the order of the OBD standard.
         val extras = d.extra.entries.sortedBy { it.key.number }
         if (extras.isNotEmpty()) {
-            SectionLabel("Arabanın desteklediği diğer veriler")
+            SectionLabel(s(Str.OTHER_DATA))
             Card {
                 extras.forEachIndexed { i, (pid, value) ->
                     if (i > 0) HorizontalDivider(color = C.Divider)
                     val (v, unit) = LocalUnits.current.convert(value, pid.unit)
-                    RowItem(pid.label, "${v.fmt(LocalUnits.current.decimalsFor(pid.unit, pid.decimals))} $unit")
+                    RowItem(LocalStrings.current.pid(pid), "${v.fmt(LocalUnits.current.decimalsFor(pid.unit, pid.decimals))} $unit")
                 }
             }
-            Text("Bu değerler sırayla okunur, birkaç saniyede bir yenilenir.", color = C.Muted, fontSize = 12.sp)
+            Text(s(Str.OTHER_DATA_HINT), color = C.Muted, fontSize = 12.sp)
         }
     }
 }
 
 /** The three kinds of OBD adapter on the market, as tabs on the Connect screen. */
-enum class AdapterType(val label: String, val hint: String) {
-    CLASSIC("Bluetooth", "Klasik Bluetooth: Vgate iCar Pro BT 3.0, OBDLink LX/MX+, çoğu ucuz ELM327. Önce telefonun Bluetooth ayarlarından eşleştir."),
-    BLE("BLE", "Bluetooth LE: Vgate iCar Pro BLE, vLinker, OBDLink CX, Veepeak BLE. Eşleştirme gerekmez, uygulama içinden aranır."),
-    WIFI("Wi-Fi", "Wi-Fi: ELM327 Wi-Fi, Vgate iCar Wi-Fi, vLinker Wi-Fi. Telefon adaptörün Wi-Fi ağına bağlanır."),
+enum class AdapterType(val label: String, val hint: Str) {
+    CLASSIC("Bluetooth", Str.ADAPTER_HINT_CLASSIC),
+    BLE("BLE", Str.ADAPTER_HINT_BLE),
+    WIFI("Wi-Fi", Str.ADAPTER_HINT_WIFI),
 }
 
 @Composable
@@ -180,7 +186,7 @@ fun ConnectScreen(
     onConnectWifi: (WifiAddress) -> Unit,
     bleDevices: List<BleDevice>,
     bleScanning: Boolean,
-    bleStatus: String?,
+    bleStatus: Msg?,
     onScanBle: () -> Unit,
     onConnectBle: (BleDevice) -> Unit,
     onShareLog: () -> Unit,
@@ -190,21 +196,23 @@ fun ConnectScreen(
     onDemo: (Boolean) -> Unit,
     units: Units,
     onUnits: (Units) -> Unit,
+    language: Lang?,
+    onLanguage: (Lang?) -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Bağlantı", color = C.Text, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+        Text(s(Str.CONNECTION), color = C.Text, fontWeight = FontWeight.Bold, fontSize = 22.sp)
 
         Card(Modifier.padding(0.dp)) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 val (title, sub, color) = when (link) {
-                    is LinkState.Connected -> Triple(link.name, "Bağlı · ${link.adapterVersion ?: "ELM327"}", C.Green)
-                    is LinkState.Connecting -> Triple(link.name, "Bağlanıyor…", C.Amber)
+                    is LinkState.Connected -> Triple(link.name, s(Str.CONNECTED_WITH, link.adapterVersion ?: "ELM327"), C.Green)
+                    is LinkState.Connecting -> Triple(link.name, s(Str.CONNECTING_ELLIPSIS), C.Amber)
                     is LinkState.Failed ->
-                        Triple(if (permissionMissing) "İzin gerekli" else "Yeniden deneniyor", link.message, C.Amber)
-                    LinkState.Disconnected -> Triple("Bağlı değil", "Aşağıdan adaptörü seç", C.Muted)
+                        Triple(s(if (permissionMissing) Str.PERMISSION_NEEDED else Str.RETRYING), s(link.message), C.Amber)
+                    LinkState.Disconnected -> Triple(s(Str.NOT_CONNECTED), s(Str.PICK_ADAPTER), C.Muted)
                 }
                 Text(title, color = C.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Text(sub, color = color, fontSize = 13.sp)
@@ -214,15 +222,15 @@ fun ConnectScreen(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = C.Red),
                     ) {
-                        Text("İzin ver", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text(s(Str.ALLOW), color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                     Text(
-                        "Pencere açılmazsa ayarlar sayfası açılır: İzinler > Yakındaki cihazlar > İzin ver.",
+                        s(Str.ALLOW_HINT),
                         color = C.Muted, fontSize = 12.sp,
                     )
                 } else if (link !is LinkState.Disconnected) {
                     OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                        Text("Bağlantıyı kes", color = C.Text)
+                        Text(s(Str.DISCONNECT), color = C.Text)
                     }
                 }
             }
@@ -231,20 +239,20 @@ fun ConnectScreen(
         // One adapter type at a time keeps the screen short; most people own one adapter.
         var type by rememberSaveable { mutableStateOf(AdapterType.CLASSIC) }
         Segmented(AdapterType.entries, type, { it.label }) { type = it }
-        Text(type.hint, color = C.Muted, fontSize = 12.sp)
+        Text(s(type.hint), color = C.Muted, fontSize = 12.sp)
 
         when (type) {
             AdapterType.CLASSIC -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionLabel("Klasik Bluetooth (eşleşmiş)", Modifier.weight(1f))
-                    Text("Yenile", color = Color(0xFFFF4D5E), fontSize = 13.sp,
+                    SectionLabel(s(Str.CLASSIC_PAIRED), Modifier.weight(1f))
+                    Text(s(Str.REFRESH), color = Color(0xFFFF4D5E), fontSize = 13.sp,
                         modifier = Modifier.clickable(onClick = onRefresh).padding(8.dp))
                 }
                 Card {
                     when {
-                        !bluetoothReady -> RowItem("Bluetooth kapalı ya da izin verilmedi", "", muted = true)
+                        !bluetoothReady -> RowItem(s(Str.BT_OFF_OR_DENIED), "", muted = true)
                         devices.isEmpty() -> Text(
-                            "Eşleşmiş cihaz yok. Telefonun Bluetooth ayarlarından adaptörü eşleştir (PIN genelde 1234 ya da 0000).",
+                            s(Str.NO_PAIRED),
                             color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
                         )
                         else -> devices.forEachIndexed { i, dev ->
@@ -256,7 +264,7 @@ fun ConnectScreen(
                                 Text(dev.name, color = C.Text, fontSize = 15.sp, modifier = Modifier.weight(1f))
                                 val current = (link as? LinkState.Connected)?.name == dev.name
                                 Text(
-                                    when { current -> "Bağlı"; dev.looksLikeObd -> "Bağlan"; else -> "OBD değil?" },
+                                    when { current -> s(Str.CONNECTED); dev.looksLikeObd -> s(Str.CONNECT); else -> s(Str.NOT_OBD) },
                                     color = if (current) C.Green else C.Muted, fontSize = 13.sp,
                                 )
                             }
@@ -266,15 +274,14 @@ fun ConnectScreen(
             }
             AdapterType.BLE -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionLabel("Bluetooth LE adaptör", Modifier.weight(1f))
-                    Text(if (bleScanning) "Aranıyor…" else "Ara", color = Color(0xFFFF4D5E), fontSize = 13.sp,
+                    SectionLabel(s(Str.BLE_ADAPTER), Modifier.weight(1f))
+                    Text(if (bleScanning) s(Str.SEARCHING) else s(Str.SEARCH), color = Color(0xFFFF4D5E), fontSize = 13.sp,
                         modifier = Modifier.clickable(enabled = !bleScanning, onClick = onScanBle).padding(8.dp))
                 }
                 Card {
                     if (bleDevices.isEmpty()) {
                         Text(
-                            bleStatus ?: "BLE adaptörler (Vgate BLE, vLinker, OBDLink CX, Veepeak…) telefonda eşleştirilmez. " +
-                                "Adaptörü takıp kontağı aç, sonra \"Ara\"ya bas.",
+                            bleStatus?.let { s(it) } ?: s(Str.BLE_INTRO, s(Str.SEARCH)),
                             color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
                         )
                     } else {
@@ -287,25 +294,24 @@ fun ConnectScreen(
                                 Text(dev.name, color = C.Text, fontSize = 15.sp, modifier = Modifier.weight(1f))
                                 val current = (link as? LinkState.Connected)?.name == dev.name
                                 Text(
-                                    when { current -> "Bağlı"; dev.looksLikeObd -> "Bağlan"; else -> "OBD değil?" },
+                                    when { current -> s(Str.CONNECTED); dev.looksLikeObd -> s(Str.CONNECT); else -> s(Str.NOT_OBD) },
                                     color = if (current) C.Green else C.Muted, fontSize = 13.sp,
                                 )
                             }
                         }
                         bleStatus?.let {
                             HorizontalDivider(color = C.Divider)
-                            Text(it, color = C.Muted, fontSize = 13.sp, modifier = Modifier.padding(16.dp))
+                            Text(s(it), color = C.Muted, fontSize = 13.sp, modifier = Modifier.padding(16.dp))
                         }
                     }
                 }
             }
             AdapterType.WIFI -> {
-                SectionLabel("Wi-Fi adaptör")
+                SectionLabel(s(Str.WIFI_ADAPTER))
                 Card {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            "Önce telefonun Wi-Fi ayarlarından adaptörün ağına bağlan (adı genelde WiFi_OBDII, OBDII ya da V-LINK). " +
-                                "Adres çoğu adaptörde 192.168.0.10:35000.",
+                            s(Str.WIFI_INTRO),
                             color = C.Muted, fontSize = 13.sp,
                         )
                         var text by remember(wifiAddress) { mutableStateOf(wifiAddress.toString()) }
@@ -313,7 +319,7 @@ fun ConnectScreen(
                         OutlinedTextField(
                             value = text,
                             onValueChange = { text = it },
-                            label = { Text("Adres (IP:port)") },
+                            label = { Text(s(Str.WIFI_ADDRESS)) },
                             singleLine = true,
                             isError = parsed == null,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
@@ -330,43 +336,70 @@ fun ConnectScreen(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = C.Red),
                         ) {
-                            Text("Wi-Fi ile bağlan", color = Color.White, fontWeight = FontWeight.SemiBold)
+                            Text(s(Str.WIFI_CONNECT), color = Color.White, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
             }
         }
 
-        SectionLabel("Ayarlar")
+        SectionLabel(s(Str.SETTINGS))
         Card {
-            ToggleRow("Açılışta otomatik bağlan", autoConnect, onAutoConnect)
+            ToggleRow(s(Str.AUTO_CONNECT), autoConnect, onAutoConnect)
             HorizontalDivider(color = C.Divider)
-            ToggleRow("Demo modu (araba olmadan)", demo, onDemo)
+            ToggleRow(s(Str.DEMO_MODE), demo, onDemo)
         }
 
-        SectionLabel("Birimler")
+        SectionLabel(s(Str.LANGUAGE))
+        LanguagePicker(language, onLanguage)
+
+        SectionLabel(s(Str.UNITS))
         Card {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Hız ve mesafe", color = C.Muted, fontSize = 13.sp)
+                Text(s(Str.SPEED_DISTANCE), color = C.Muted, fontSize = 13.sp)
                 Segmented(SpeedUnit.entries, units.speed, { it.label }) { onUnits(units.copy(speed = it)) }
-                Text("Sıcaklık", color = C.Muted, fontSize = 13.sp)
+                Text(s(Str.TEMPERATURE), color = C.Muted, fontSize = 13.sp)
                 Segmented(TempUnit.entries, units.temp, { it.label }) { onUnits(units.copy(temp = it)) }
-                Text("Basınç", color = C.Muted, fontSize = 13.sp)
+                Text(s(Str.PRESSURE), color = C.Muted, fontSize = 13.sp)
                 Segmented(PressureUnit.entries, units.pressure, { it.label }) { onUnits(units.copy(pressure = it)) }
             }
         }
 
-        SectionLabel("Adaptör günlüğü")
+        SectionLabel(s(Str.ADAPTER_LOG))
         Card {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Bir adaptör ya da araç çalışmazsa bu günlüğü paylaş. Adaptöre gönderilen komutları ve cevaplarını içerir, kişisel veri içermez.",
+                    s(Str.ADAPTER_LOG_HINT),
                     color = C.Muted, fontSize = 13.sp,
                 )
                 OutlinedButton(onClick = onShareLog, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Text("Günlüğü paylaş", color = C.Text)
+                    Text(s(Str.SHARE_LOG), color = C.Text)
                 }
             }
+        }
+    }
+}
+
+/** Phone language first, then every language we ship, each in its own name. Wraps on narrow screens. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LanguagePicker(selected: Lang?, onSelect: (Lang?) -> Unit) = Card {
+    FlowRow(
+        Modifier.fillMaxWidth().padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        (listOf<Lang?>(null) + Lang.entries).forEach { lang ->
+            val on = lang == selected
+            Text(
+                lang?.nativeName ?: s(Str.LANGUAGE_SYSTEM),
+                color = if (on) Color.White else C.Muted,
+                fontSize = 13.sp,
+                fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                    .background(if (on) C.Red else Color.Transparent)
+                    .clickable { onSelect(lang) }.padding(horizontal = 14.dp, vertical = 12.dp),
+            )
         }
     }
 }
@@ -413,7 +446,7 @@ fun CarScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
             Badge(Brand.BADGE)
             Text(Brand.TITLE, color = C.Text, fontWeight = FontWeight.Bold, fontSize = 20.sp,
                 modifier = Modifier.padding(start = 12.dp).weight(1f))
-            Text("Dış ${LocalUnits.current.temp(d.ambientC).fmt()} ${LocalUnits.current.tempUnit}", color = C.Muted, fontSize = 15.sp, modifier = Modifier.padding(end = 16.dp))
+            Text(s(Str.OUTSIDE_SHORT, "${LocalUnits.current.temp(d.ambientC).fmt()} ${LocalUnits.current.tempUnit}"), color = C.Muted, fontSize = 15.sp, modifier = Modifier.padding(end = 16.dp))
             LinkChip(link, onLinkClick)
         }
         Spacer(Modifier.padding(6.dp))
@@ -423,12 +456,12 @@ fun CarScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 val tiles = listOf(
-                    Triple("Su sıcaklığı", LocalUnits.current.temp(d.coolantC).fmt(), LocalUnits.current.tempUnit),
-                    Triple("Akü", d.batteryV.fmt(1), "V"),
-                    Triple("Motor yükü", d.loadPct.fmt(), "%"),
-                    Triple("Emme sıcaklığı", LocalUnits.current.temp(d.intakeC).fmt(), LocalUnits.current.tempUnit),
-                    Triple("Gaz pedalı", d.throttlePct.fmt(), "%"),
-                    Triple("Dış sıcaklık", LocalUnits.current.temp(d.ambientC).fmt(), LocalUnits.current.tempUnit),
+                    Triple(s(Str.COOLANT_TEMP), LocalUnits.current.temp(d.coolantC).fmt(), LocalUnits.current.tempUnit),
+                    Triple(s(Str.BATTERY), d.batteryV.fmt(1), "V"),
+                    Triple(s(Str.ENGINE_LOAD), d.loadPct.fmt(), "%"),
+                    Triple(s(Str.INTAKE_TEMP), LocalUnits.current.temp(d.intakeC).fmt(), LocalUnits.current.tempUnit),
+                    Triple(s(Str.ACCELERATOR), d.throttlePct.fmt(), "%"),
+                    Triple(s(Str.OUTSIDE_TEMP), LocalUnits.current.temp(d.ambientC).fmt(), LocalUnits.current.tempUnit),
                 )
                 tiles.chunked(2).forEach { pair ->
                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {

@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import app.obdgolf.core.Str
 
 const val RPM_MAX = 7000.0
 const val RPM_RED = 6000.0
@@ -58,7 +59,7 @@ fun RevGauge(rpm: Double?, speed: Double?, diameter: Dp, stroke: Dp, big: TextUn
             if (frac > 0f) drawArc(C.Red, 135f, 270f * frac, false, topLeft, arc, style = Stroke(sw, cap = StrokeCap.Round))
         }
         Column(Modifier.padding(top = diameter * 0.26f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("DEVİR", color = C.Muted, fontSize = small, letterSpacing = 2.sp)
+            Text(s(Str.RPM).uppercase(LocalStrings.current.lang.locale), color = C.Muted, fontSize = small, letterSpacing = 2.sp)
             Text(rpm.fmt(), color = C.Text, fontSize = big, fontWeight = FontWeight.Bold)
             Text("rpm", color = C.Muted, fontSize = small)
         }

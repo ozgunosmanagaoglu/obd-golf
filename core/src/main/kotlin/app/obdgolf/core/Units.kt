@@ -2,7 +2,7 @@ package app.obdgolf.core
 
 enum class SpeedUnit(val label: String, val speed: String, val distance: String) {
     METRIC("km/h · km", "km/h", "km"),
-    IMPERIAL("mph · mil", "mph", "mi"),
+    IMPERIAL("mph · mi", "mph", "mi"),
 }
 
 enum class TempUnit(val label: String) { CELSIUS("°C"), FAHRENHEIT("°F") }

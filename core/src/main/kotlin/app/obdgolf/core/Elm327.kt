@@ -1,6 +1,5 @@
 package app.obdgolf.core
 
-import java.io.IOException
 
 /** Status words an ELM327 (or clone / STN chip) prints instead of data. */
 enum class ElmError(val token: String, val linkLost: Boolean) {
@@ -36,7 +35,7 @@ enum class ObdProtocol(val number: Char, val label: String) {
     J1850_VPW('2', "SAE J1850 VPW"),
     ISO_9141('3', "ISO 9141-2"),
     KWP_5BAUD('4', "ISO 14230 KWP (5 baud)"),
-    KWP_FAST('5', "ISO 14230 KWP (hızlı)"),
+    KWP_FAST('5', "ISO 14230 KWP (fast)"),
     CAN_11_500('6', "CAN 11 bit 500k"),
     CAN_29_500('7', "CAN 29 bit 500k"),
     CAN_11_250('8', "CAN 11 bit 250k"),
@@ -117,11 +116,8 @@ class SupportedPids(private val known: Map<Int, Set<Int>> = emptyMap()) {
 }
 
 /** The adapter works but the car does not answer: ignition off, wrong socket, or not an OBD-II car. */
-class VehicleNotRespondingException(val error: ElmError?) : IOException(
-    "Araç cevap vermiyor. Kontak açık mı?" + (error?.let { " (${it.token})" } ?: "")
-)
+class VehicleNotRespondingException(val error: ElmError?) :
+    LocalizedIOException(Str.VEHICLE_NO_REPLY, error?.let { " (${it.token})" } ?: "")
 
 /** The adapter answers nothing at all: not an ELM327, or it hung and needs replugging. */
-class AdapterNotRespondingException : IOException(
-    "Adaptör cevap vermiyor. Adaptörü çıkarıp tekrar takmayı dene."
-)
+class AdapterNotRespondingException : LocalizedIOException(Str.ADAPTER_NO_REPLY)

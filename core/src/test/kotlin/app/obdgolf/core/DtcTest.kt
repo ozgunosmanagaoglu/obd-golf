@@ -46,8 +46,9 @@ class DtcTest {
 
     @Test fun descriptions() {
         assertTrue(DtcInfo.describe("P0299").contains("Turbo"))
-        assertTrue(DtcInfo.describe("P1570").startsWith("VW'ye özel"))
-        assertEquals("Ateşleme / tekleme", DtcInfo.describe("P0399"))
+        assertEquals("Manufacturer-specific code (Speed, idle and electrics)", DtcInfo.describe("P1570"))
+        assertEquals("Ateşleme / tekleme", DtcInfo.describe("P0399", Lang.TR))
+        assertEquals("Turbo aşırı basınç (overboost)", DtcInfo.describe("P0234", Lang.TR))
         assertTrue(DtcInfo.isManufacturerSpecific("U1013"))
         assertFalse(DtcInfo.isManufacturerSpecific("P0420"))
     }

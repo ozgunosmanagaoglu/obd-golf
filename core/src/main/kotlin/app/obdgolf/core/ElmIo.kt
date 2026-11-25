@@ -1,6 +1,5 @@
 package app.obdgolf.core
 
-import java.io.IOException
 
 /** Sends one command to an ELM327 and returns its raw reply (everything before the '>' prompt). */
 interface ElmIo {
@@ -9,7 +8,7 @@ interface ElmIo {
 }
 
 /** The adapter did not finish its reply (no '>' prompt) in time. */
-class ElmTimeoutException(val command: String) : IOException("Adaptör \"$command\" komutuna zamanında cevap vermedi")
+class ElmTimeoutException(val command: String) : LocalizedIOException(Str.ADAPTER_TIMEOUT, command)
 
 /**
  * ELM327 command/reply framing over any [Transport]: write "command\r", collect bytes until '>'.

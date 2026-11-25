@@ -94,9 +94,9 @@ class BleTest {
 
     @Test fun droppedLinkFailsReads() {
         val t = PushTransport({})
-        t.onClosed("Adaptör bağlantısı koptu")
+        t.onClosed(Str.ADAPTER_LINK_LOST)
         val e = assertFailsWith<IOException> { runBlocking { t.read(100) } }
-        assertEquals("Adaptör bağlantısı koptu", e.message)
+        assertEquals(Msg.Key(Str.ADAPTER_LINK_LOST), (e as LocalizedIOException).msg)
         assertFailsWith<IOException> { runBlocking { t.write("ATZ\r".toByteArray()) } }
     }
 
