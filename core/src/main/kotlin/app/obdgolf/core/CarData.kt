@@ -13,7 +13,11 @@ data class CarData(
     val refreshHz: Double? = null,
     /** Other standard PIDs the car supports, read in turns (Veriler screen). */
     val extra: Map<Pid, Double> = emptyMap(),
+    /** Maker-specific values (e.g. VW group oil temperature) the car answered while connecting. */
+    val brand: Map<BrandValue, Double> = emptyMap(),
 ) {
+    fun with(value: BrandValue, v: Double?): CarData = copy(brand = if (v == null) brand - value else brand + (value to v))
+
     fun with(pid: Pid, value: Double?): CarData = when (pid) {
         Pid.RPM -> copy(rpm = value)
         Pid.SPEED -> copy(speedKmh = value)

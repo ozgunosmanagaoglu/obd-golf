@@ -42,6 +42,10 @@ internal val TR_STRINGS: Map<Str, String> = mapOf(
     STANDARD_OBD to "Standart OBD",
     OTHER_DATA to "Arabanın desteklediği diğer veriler",
     OTHER_DATA_HINT to "Bu değerler sırayla okunur, birkaç saniyede bir yenilenir.",
+    BRAND_DATA to "Üretici verileri ({0})",
+    BRAND_DATA_HINT to "Doğrudan motor ve şanzıman beyninden okunur. Bunlar OBD standardında yok, bu yüzden sadece arabanın mantıklı cevap verdiği değerler gösterilir.",
+    BRAND_OIL_TEMP to "Motor yağı sıcaklığı",
+    BRAND_GEARBOX_TEMP to "Şanzıman yağı sıcaklığı",
 
     CONNECTED_WITH to "Bağlı · {0}",
     PERMISSION_NEEDED to "İzin gerekli",

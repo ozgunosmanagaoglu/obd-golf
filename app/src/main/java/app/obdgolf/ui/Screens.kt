@@ -162,6 +162,19 @@ fun DetailsScreen(d: CarData, vehicle: VehicleInfo?, adapterLabel: String?) {
             }
             Text(s(Str.OTHER_DATA_HINT), color = C.Muted, fontSize = 12.sp)
         }
+        // Maker-specific values (VW group for now) that this car answered while connecting.
+        val brand = d.brand.entries.toList()
+        if (brand.isNotEmpty()) {
+            SectionLabel(s(Str.BRAND_DATA, vehicle?.make ?: "—"))
+            Card {
+                brand.forEachIndexed { i, (value, raw) ->
+                    if (i > 0) HorizontalDivider(color = C.Divider)
+                    val (v, unit) = LocalUnits.current.convert(raw, value.unit)
+                    RowItem(s(value.label), "${v.fmt(LocalUnits.current.decimalsFor(value.unit, value.decimals))} $unit")
+                }
+            }
+            Text(s(Str.BRAND_DATA_HINT), color = C.Muted, fontSize = 12.sp)
+        }
     }
 }
 

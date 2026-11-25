@@ -33,9 +33,31 @@ class ObdSession(
     var vehicle: VehicleInfo? = null
         private set
 
+    /** Maker-specific values this car answered while connecting (see [BrandProfiles]). */
+    var brandValues: List<BrandValue> = emptyList()
+        private set
+
     // Live polling and fault reading share one adapter: one command at a time.
     private val lock = Mutex()
     private suspend fun ask(command: String, timeoutMs: Long = 2_000) = lock.withLock { io.exchange(command, timeoutMs) }
+
+    /**
+     * Sends [command] to one control unit ([header], e.g. 7E0) and switches back to the OBD broadcast
+     * address 7DF, all under one lock so fault reading never goes to the wrong unit.
+     */
+    private suspend fun askUnit(header: String, command: String, timeoutMs: Long = 1_000): String? = lock.withLock {
+        try {
+            io.exchange("ATSH$header", 1_000)
+            io.exchange(command, timeoutMs)
+        } catch (_: ElmTimeoutException) {
+            null
+        } finally {
+            runCatching { io.exchange("ATSH7DF", 1_000) }
+        }
+    }
+
+    private suspend fun readBrand(value: BrandValue): Double? =
+        askUnit(value.header, value.request)?.let { BrandProfiles.parse(value, it) }
 
     suspend fun initialize() {
         val reset = resetAdapter()
@@ -63,6 +85,14 @@ class ObdSession(
         val protocol = runCatching { ObdProtocol.fromDpn(ask("ATDPN")) }.getOrNull()
         adapter = AdapterInfo(elmVersion = elm, stnId = stn, protocol = protocol)
         vehicle = runCatching { Vin.parse(ask("0902", timeoutMs = 3_000)) }.getOrNull()?.let { Vin.decode(it) }
+        brandValues = probeBrand()
+    }
+
+    /** Tries each value of the car's maker profile once; keeps the ones that answer sensibly. */
+    private suspend fun probeBrand(): List<BrandValue> {
+        val profile = BrandProfiles.forGroup(vehicle?.group) ?: return emptyList()
+        if (adapter.protocol?.isCan11 != true) return emptyList()
+        return profile.values.filter { readBrand(it) != null }
     }
 
     /** ATZ, tried twice: some clones drop the first command after power-up. */
@@ -126,6 +156,7 @@ class ObdSession(
                     val pid = extras[nextExtra++ % extras.size]
                     data = data.with(pid, read(pid, counts = false))
                 }
+                for (v in brandValues) data = data.with(v, readBrand(v))
             }
             loop++
             windowLoops++

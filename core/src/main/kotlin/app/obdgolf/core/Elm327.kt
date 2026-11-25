@@ -44,6 +44,9 @@ enum class ObdProtocol(val number: Char, val label: String) {
 
     val isCan: Boolean get() = number in '6'..'9'
 
+    /** 11-bit CAN, where control units are addressed as 7E0..7E7 (needed for maker-specific requests). */
+    val isCan11: Boolean get() = this == CAN_11_500 || this == CAN_11_250
+
     companion object {
         /** Parses the reply to ATDPN, e.g. "A6" (found automatically) or "6". */
         fun fromDpn(raw: String): ObdProtocol? {
