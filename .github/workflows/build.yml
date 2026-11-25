@@ -23,6 +23,17 @@ jobs:
       - name: Test OBD logic
         run: ./gradlew :core:test --console=plain
 
+      # Screenshots of the main screens on a small phone, a tablet and two car head-unit sizes,
+      # in Turkish and English. Download them from the run's "screenshots" artifact.
+      - name: Screenshot tests
+        run: ./gradlew :app:recordRoborazziDebug --console=plain
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: app/build/outputs/roborazzi
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --console=plain
 

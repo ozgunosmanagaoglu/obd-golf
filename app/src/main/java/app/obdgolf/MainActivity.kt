@@ -194,12 +194,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: Str) {
+internal enum class Tab(val label: Str) {
     Dashboard(Str.TAB_DASHBOARD), Details(Str.TAB_DATA), Faults(Str.TAB_FAULTS), History(Str.TAB_HISTORY), Connect(Str.CONNECTION)
 }
 
 /** Where the app lands after connecting. */
-private val homeTab = Tab.Dashboard
+internal val homeTab = Tab.Dashboard
 
 @Composable
 private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit, onScanBle: () -> Unit, onShareLog: () -> Unit) {
@@ -299,21 +299,29 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                 )
             }
         }
-        if (LocalConfiguration.current.screenWidthDp >= WIDE_DP) {
-            // Tablets, foldables and landscape phones: tabs on the left, content kept to a readable width.
-            Row(Modifier.fillMaxSize()) {
-                TabBar(tab, vertical = true) { tab = it }
-                Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
-                    Box(Modifier.widthIn(max = MAX_CONTENT_DP.dp).fillMaxSize()) { screen() }
-                }
-            }
-        } else {
-            Column(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(1f)) { screen() }
-                TabBar(tab, vertical = false) { tab = it }
+        AppFrame(tab, { tab = it }, screen)
+    }
+    }
+}
+
+/**
+ * The tabs around a screen. Phones in portrait get a bottom bar; from [WIDE_DP] (tablets, foldables,
+ * landscape phones) the tabs move to a side bar and the content is kept to a readable width.
+ */
+@Composable
+internal fun AppFrame(tab: Tab, onSelect: (Tab) -> Unit, screen: @Composable () -> Unit) {
+    if (LocalConfiguration.current.screenWidthDp >= WIDE_DP) {
+        Row(Modifier.fillMaxSize()) {
+            TabBar(tab, vertical = true, onSelect = onSelect)
+            Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                Box(Modifier.widthIn(max = MAX_CONTENT_DP.dp).fillMaxSize()) { screen() }
             }
         }
-    }
+    } else {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f)) { screen() }
+            TabBar(tab, vertical = false, onSelect = onSelect)
+        }
     }
 }
 
