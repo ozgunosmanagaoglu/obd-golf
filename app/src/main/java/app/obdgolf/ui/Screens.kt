@@ -28,6 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -125,6 +127,13 @@ fun DetailsScreen(d: CarData) {
     }
 }
 
+/** The three kinds of OBD adapter on the market, as tabs on the Connect screen. */
+enum class AdapterType(val label: String, val hint: String) {
+    CLASSIC("Bluetooth", "Klasik Bluetooth: Vgate iCar Pro BT 3.0, OBDLink LX/MX+, çoğu ucuz ELM327. Önce telefonun Bluetooth ayarlarından eşleştir."),
+    BLE("BLE", "Bluetooth LE: Vgate iCar Pro BLE, vLinker, OBDLink CX, Veepeak BLE. Eşleştirme gerekmez, uygulama içinden aranır."),
+    WIFI("Wi-Fi", "Wi-Fi: ELM327 Wi-Fi, Vgate iCar Wi-Fi, vLinker Wi-Fi. Telefon adaptörün Wi-Fi ağına bağlanır."),
+}
+
 @Composable
 fun ConnectScreen(
     link: LinkState,
@@ -142,6 +151,7 @@ fun ConnectScreen(
     bleStatus: String?,
     onScanBle: () -> Unit,
     onConnectBle: (BleDevice) -> Unit,
+    onShareLog: () -> Unit,
     onDisconnect: () -> Unit,
     onRefresh: () -> Unit,
     onAutoConnect: (Boolean) -> Unit,
@@ -184,100 +194,128 @@ fun ConnectScreen(
             }
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionLabel("Klasik Bluetooth (eşleşmiş)", Modifier.weight(1f))
-            Text("Yenile", color = Color(0xFFFF4D5E), fontSize = 13.sp,
-                modifier = Modifier.clickable(onClick = onRefresh).padding(8.dp))
-        }
-        Card {
-            when {
-                !bluetoothReady -> RowItem("Bluetooth kapalı ya da izin verilmedi", "", muted = true)
-                devices.isEmpty() -> Text(
-                    "Eşleşmiş cihaz yok. Telefonun Bluetooth ayarlarından adaptörü eşleştir (PIN genelde 1234 ya da 0000).",
-                    color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
+        // One adapter type at a time keeps the screen short; most people own one adapter.
+        var type by rememberSaveable { mutableStateOf(AdapterType.CLASSIC) }
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Card).padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            AdapterType.entries.forEach { t ->
+                val selected = t == type
+                Text(
+                    t.label,
+                    color = if (selected) Color.White else C.Muted,
+                    fontSize = 13.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                        .background(if (selected) C.Red else Color.Transparent)
+                        .clickable { type = t }.padding(vertical = 12.dp),
                 )
-                else -> devices.forEachIndexed { i, dev ->
-                    if (i > 0) HorizontalDivider(color = C.Divider)
-                    Row(
-                        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { onConnect(dev) }.padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(dev.name, color = C.Text, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                        val current = (link as? LinkState.Connected)?.name == dev.name
-                        Text(
-                            when { current -> "Bağlı"; dev.looksLikeObd -> "Bağlan"; else -> "OBD değil?" },
-                            color = if (current) C.Green else C.Muted, fontSize = 13.sp,
+            }
+        }
+        Text(type.hint, color = C.Muted, fontSize = 12.sp)
+
+        when (type) {
+            AdapterType.CLASSIC -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SectionLabel("Klasik Bluetooth (eşleşmiş)", Modifier.weight(1f))
+                    Text("Yenile", color = Color(0xFFFF4D5E), fontSize = 13.sp,
+                        modifier = Modifier.clickable(onClick = onRefresh).padding(8.dp))
+                }
+                Card {
+                    when {
+                        !bluetoothReady -> RowItem("Bluetooth kapalı ya da izin verilmedi", "", muted = true)
+                        devices.isEmpty() -> Text(
+                            "Eşleşmiş cihaz yok. Telefonun Bluetooth ayarlarından adaptörü eşleştir (PIN genelde 1234 ya da 0000).",
+                            color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
                         )
+                        else -> devices.forEachIndexed { i, dev ->
+                            if (i > 0) HorizontalDivider(color = C.Divider)
+                            Row(
+                                Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { onConnect(dev) }.padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(dev.name, color = C.Text, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                                val current = (link as? LinkState.Connected)?.name == dev.name
+                                Text(
+                                    when { current -> "Bağlı"; dev.looksLikeObd -> "Bağlan"; else -> "OBD değil?" },
+                                    color = if (current) C.Green else C.Muted, fontSize = 13.sp,
+                                )
+                            }
+                        }
                     }
                 }
             }
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionLabel("Bluetooth LE adaptör", Modifier.weight(1f))
-            Text(if (bleScanning) "Aranıyor…" else "Ara", color = Color(0xFFFF4D5E), fontSize = 13.sp,
-                modifier = Modifier.clickable(enabled = !bleScanning, onClick = onScanBle).padding(8.dp))
-        }
-        Card {
-            if (bleDevices.isEmpty()) {
-                Text(
-                    bleStatus ?: "BLE adaptörler (Vgate BLE, vLinker, OBDLink CX, Veepeak…) telefonda eşleştirilmez. " +
-                        "Adaptörü takıp kontağı aç, sonra \"Ara\"ya bas.",
-                    color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
-                )
-            } else {
-                bleDevices.forEachIndexed { i, dev ->
-                    if (i > 0) HorizontalDivider(color = C.Divider)
-                    Row(
-                        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { onConnectBle(dev) }.padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(dev.name, color = C.Text, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                        val current = (link as? LinkState.Connected)?.name == dev.name
+            AdapterType.BLE -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SectionLabel("Bluetooth LE adaptör", Modifier.weight(1f))
+                    Text(if (bleScanning) "Aranıyor…" else "Ara", color = Color(0xFFFF4D5E), fontSize = 13.sp,
+                        modifier = Modifier.clickable(enabled = !bleScanning, onClick = onScanBle).padding(8.dp))
+                }
+                Card {
+                    if (bleDevices.isEmpty()) {
                         Text(
-                            when { current -> "Bağlı"; dev.looksLikeObd -> "Bağlan"; else -> "OBD değil?" },
-                            color = if (current) C.Green else C.Muted, fontSize = 13.sp,
+                            bleStatus ?: "BLE adaptörler (Vgate BLE, vLinker, OBDLink CX, Veepeak…) telefonda eşleştirilmez. " +
+                                "Adaptörü takıp kontağı aç, sonra \"Ara\"ya bas.",
+                            color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
                         )
+                    } else {
+                        bleDevices.forEachIndexed { i, dev ->
+                            if (i > 0) HorizontalDivider(color = C.Divider)
+                            Row(
+                                Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { onConnectBle(dev) }.padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(dev.name, color = C.Text, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                                val current = (link as? LinkState.Connected)?.name == dev.name
+                                Text(
+                                    when { current -> "Bağlı"; dev.looksLikeObd -> "Bağlan"; else -> "OBD değil?" },
+                                    color = if (current) C.Green else C.Muted, fontSize = 13.sp,
+                                )
+                            }
+                        }
+                        bleStatus?.let {
+                            HorizontalDivider(color = C.Divider)
+                            Text(it, color = C.Muted, fontSize = 13.sp, modifier = Modifier.padding(16.dp))
+                        }
                     }
                 }
-                bleStatus?.let {
-                    HorizontalDivider(color = C.Divider)
-                    Text(it, color = C.Muted, fontSize = 13.sp, modifier = Modifier.padding(16.dp))
-                }
             }
-        }
-
-        SectionLabel("Wi-Fi adaptör")
-        Card {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    "Önce telefonun Wi-Fi ayarlarından adaptörün ağına bağlan (adı genelde WiFi_OBDII, OBDII ya da V-LINK). " +
-                        "Adres çoğu adaptörde 192.168.0.10:35000.",
-                    color = C.Muted, fontSize = 13.sp,
-                )
-                var text by remember(wifiAddress) { mutableStateOf(wifiAddress.toString()) }
-                val parsed = WifiAddress.parse(text)
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    label = { Text("Adres (IP:port)") },
-                    singleLine = true,
-                    isError = parsed == null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = C.Text, unfocusedTextColor = C.Text,
-                        focusedBorderColor = C.Red, unfocusedBorderColor = C.Divider,
-                        focusedLabelColor = C.Red, unfocusedLabelColor = C.Muted, cursorColor = C.Red,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Button(
-                    onClick = { parsed?.let(onConnectWifi) },
-                    enabled = parsed != null,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = C.Red),
-                ) {
-                    Text("Wi-Fi ile bağlan", color = Color.White, fontWeight = FontWeight.SemiBold)
+            AdapterType.WIFI -> {
+                SectionLabel("Wi-Fi adaptör")
+                Card {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            "Önce telefonun Wi-Fi ayarlarından adaptörün ağına bağlan (adı genelde WiFi_OBDII, OBDII ya da V-LINK). " +
+                                "Adres çoğu adaptörde 192.168.0.10:35000.",
+                            color = C.Muted, fontSize = 13.sp,
+                        )
+                        var text by remember(wifiAddress) { mutableStateOf(wifiAddress.toString()) }
+                        val parsed = WifiAddress.parse(text)
+                        OutlinedTextField(
+                            value = text,
+                            onValueChange = { text = it },
+                            label = { Text("Adres (IP:port)") },
+                            singleLine = true,
+                            isError = parsed == null,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = C.Text, unfocusedTextColor = C.Text,
+                                focusedBorderColor = C.Red, unfocusedBorderColor = C.Divider,
+                                focusedLabelColor = C.Red, unfocusedLabelColor = C.Muted, cursorColor = C.Red,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Button(
+                            onClick = { parsed?.let(onConnectWifi) },
+                            enabled = parsed != null,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = C.Red),
+                        ) {
+                            Text("Wi-Fi ile bağlan", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
             }
         }
@@ -287,6 +325,19 @@ fun ConnectScreen(
             ToggleRow("Açılışta otomatik bağlan", autoConnect, onAutoConnect)
             HorizontalDivider(color = C.Divider)
             ToggleRow("Demo modu (araba olmadan)", demo, onDemo)
+        }
+
+        SectionLabel("Adaptör günlüğü")
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Bir adaptör ya da araç çalışmazsa bu günlüğü paylaş. Adaptöre gönderilen komutları ve cevaplarını içerir, kişisel veri içermez.",
+                    color = C.Muted, fontSize = 13.sp,
+                )
+                OutlinedButton(onClick = onShareLog, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text("Günlüğü paylaş", color = C.Text)
+                }
+            }
         }
     }
 }
