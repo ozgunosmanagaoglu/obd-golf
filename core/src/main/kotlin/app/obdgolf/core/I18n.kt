@@ -126,6 +126,10 @@ enum class Str(val en: String) {
     STANDARD_OBD("Standard OBD"),
     OTHER_DATA("Other data this car supports"),
     OTHER_DATA_HINT("These values are read in turns and refresh every few seconds."),
+    BRAND_DATA("Maker data ({0})"),
+    BRAND_DATA_HINT("Read straight from the engine and gearbox control units. These are not part of the OBD standard, so only values your car answers sensibly are shown."),
+    BRAND_OIL_TEMP("Engine oil temperature"),
+    BRAND_GEARBOX_TEMP("Gearbox oil temperature"),
 
     // Connection screen
     CONNECTED_WITH("Connected · {0}"),

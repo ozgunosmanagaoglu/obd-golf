@@ -31,6 +31,8 @@ Standart OBD (mod 01): devir, hız, su sıcaklığı, emme sıcaklığı, dış 
 
 Bağlanınca uygulama arabanın desteklediği PID listesini (0100, 0120, 0140…) okur ve sadece onları sorar. Yakıt seviyesi, yakıt düzeltmeleri, MAF, manifold basıncı, ateşleme avansı, katalizör ve yağ sıcaklığı, yakıt tüketimi gibi 30'a yakın ek standart veri, araba destekliyorsa **Veriler** sekmesinde sırayla gösterilir. VIN (mod 09) okunur ve marka ile model yılı çıkarılır. Paylaşılan günlükte VIN gizlenir.
 
+**Marka verileri (şimdilik sadece VW grubu: VW, Audi, Škoda, SEAT, Cupra, Porsche).** VIN'den marka VW grubu çıkarsa ve bağlantı 11 bit CAN ise, uygulama bağlanırken üreticiye özel değerleri bir kez dener (UDS servis 22, `ATSH7E0` motor, `ATSH7E1` şanzıman, sonra `ATSH7DF`'ye geri döner). Sadece mantıklı aralıkta cevap gelen değerler **Veriler** sekmesinde "Üretici verileri" başlığı altında gösterilir. Şu an: motor yağı sıcaklığı (`22 11BE`) ve şanzıman yağı sıcaklığı (`22 2104`). Bunlar MQB (yaklaşık 2013 sonrası) araçlar için; Golf Mk6 gibi eski PQ35 araçlar çoğunlukla cevap vermez, onlar için VW TP2.0 ölçüm blokları ayrı bir adımda gelecek. Profiller `core/BrandProfile.kt` içinde veri olarak durur.
+
 Birimler **Bağlantı → Birimler** bölümünden seçilir: km/h·km ya da mph·mil, °C ya da °F, kPa, bar ya da psi. İlk açılışta telefonun ülkesine göre seçilir (ABD: mph, °F, psi; İngiltere: mph, °C, psi). Uygulama içinde her şey metrik tutulur, sadece gösterim çevrilir.
 
 ## Diller

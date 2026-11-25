@@ -18,6 +18,7 @@ class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : Elm
     private val start = clock()
     private var last = clock()
     private var rpm = 800.0
+    private var header = "7DF"
 
     override suspend fun exchange(command: String, timeoutMs: Long): String {
         delay(15)
@@ -26,7 +27,14 @@ class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : Elm
         val f = (rpm - 800) / 5600
         val speed = max(0.0, f) * 140
         val coolant = min(90.0, 40 + t * 2)
+        if (command.startsWith("ATSH")) {
+            header = command.removePrefix("ATSH")
+            return "OK\r"
+        }
         return when (command) {
+            // VW group (MQB) extras: engine oil and DSG temperature, each from its own control unit.
+            "2211BE" -> if (header == "7E0") "6211BE" + hex2((min(96.0, 25 + t * 1.5) * 10).roundToInt() + 2731) + "\r" else "NO DATA\r"
+            "222104" -> if (header == "7E1") "622104" + hex1(min(78.0, 22 + t).roundToInt()) + "\r" else "NO DATA\r"
             "ATZ" -> "\r\rELM327 v2.3\r\r"
             "ATRV" -> "14.1V\r"
             "STI" -> "?\r"
