@@ -53,7 +53,6 @@ import app.obdgolf.ui.DashboardScreen
 import app.obdgolf.ui.DetailsScreen
 import app.obdgolf.ui.FaultScreen
 import app.obdgolf.ui.SplashScreen
-import app.obdgolf.ui.Garage3DScreen
 import app.obdgolf.ui.HistoryScreen
 import app.obdgolf.ui.ObdTheme
 
@@ -147,6 +146,12 @@ private enum class Tab(val label: String) {
     Garage("Garaj"), Dashboard("Gösterge"), Details("Veriler"), Faults("Arıza"), History("Geçmiş"), Connect("Bağlantı")
 }
 
+/** Tabs this build shows: the garage exists only in the personal edition. */
+private val visibleTabs = Tab.entries.filter { it != Tab.Garage || Edition.HAS_GARAGE }
+
+/** Where the app lands after connecting. */
+private val homeTab = visibleTabs.first()
+
 @Composable
 private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit) {
     val link by vm.link.collectAsState()
@@ -176,7 +181,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val drives by vm.drives.collectAsState()
     val faults by vm.faults.collectAsState()
     val permissionMissing by vm.permissionMissing.collectAsState()
-    var tab by rememberSaveable { mutableStateOf(Tab.Garage) }
+    var tab by rememberSaveable { mutableStateOf(homeTab) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Box(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding().navigationBarsPadding()) {
@@ -187,7 +192,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
                 when (tab) {
-                    Tab.Garage -> Garage3DScreen(data, link, demo)
+                    Tab.Garage -> Edition.Garage(data, link, demo)
                     Tab.Dashboard -> DashboardScreen(data, link) { tab = Tab.Connect }
                     Tab.Details -> DetailsScreen(data)
                     Tab.Faults -> FaultScreen(
@@ -206,11 +211,11 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                         demo = demo,
                         permissionMissing = permissionMissing,
                         onGrantPermission = onGrantPermission,
-                        onConnect = { onConnect(it); tab = Tab.Garage },
+                        onConnect = { onConnect(it); tab = homeTab },
                         onDisconnect = vm::disconnect,
                         onRefresh = vm::refreshDevices,
                         onAutoConnect = vm::setAutoConnect,
-                        onDemo = { vm.setDemo(it); if (it) tab = Tab.Garage },
+                        onDemo = { vm.setDemo(it); if (it) tab = homeTab },
                     )
                 }
             }
@@ -219,7 +224,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                     .clip(RoundedCornerShape(22.dp)).background(C.Card).padding(5.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Tab.entries.forEach { t ->
+                visibleTabs.forEach { t ->
                     val selected = t == tab
                     TextButton(
                         onClick = { tab = t },

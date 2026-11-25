@@ -23,16 +23,52 @@ jobs:
       - name: Test OBD logic
         run: ./gradlew :core:test --console=plain
 
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --console=plain
+      # personal = the owner's Golf build (with the garage), store = Revora for Google Play.
+      - name: Build debug APKs
+        run: ./gradlew :app:assemblePersonalDebug :app:assembleStoreDebug --console=plain
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk golf-obd.apk
+      - name: Check the store build has no garage
+        run: |
+          if unzip -l app/build/outputs/apk/store/debug/app-store-debug.apk | grep -qi garage3d; then
+            echo "The store APK must not contain the garage (assets/garage3d)"; exit 1
+          fi
+
+      - name: Rename APKs
+        run: |
+          cp app/build/outputs/apk/personal/debug/app-personal-debug.apk golf-obd.apk
+          cp app/build/outputs/apk/store/debug/app-store-debug.apk revora-test.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: golf-obd-apk
-          path: golf-obd.apk
+          name: apks
+          path: |
+            golf-obd.apk
+            revora-test.apk
+
+      # Signed bundle for Google Play. Runs only once the upload key is in the repo's
+      # Settings > Secrets (UPLOAD_KEYSTORE_BASE64, UPLOAD_KEYSTORE_PASSWORD, UPLOAD_KEY_ALIAS, UPLOAD_KEY_PASSWORD).
+      - name: Build signed Play bundle
+        id: bundle
+        if: github.event_name != 'pull_request'
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+        run: |
+          if [ -z "$UPLOAD_KEYSTORE_BASE64" ]; then
+            echo "No upload key in secrets yet, skipping the Play bundle."; exit 0
+          fi
+          echo "$UPLOAD_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          UPLOAD_KEYSTORE_FILE="$RUNNER_TEMP/upload.jks" ./gradlew :app:bundleStoreRelease --console=plain
+          cp app/build/outputs/bundle/storeRelease/app-store-release.aab revora.aab
+          echo "built=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.bundle.outputs.built == 'true'
+        with:
+          name: revora-play-bundle
+          path: revora.aab
 
       # Keeps one always-current download link: Releases > "latest".
       # Not a prerelease: GitHub's /releases/latest link skips prereleases.
@@ -42,7 +78,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest golf-obd.apk \
-            --title "Golf OBD (build ${{ github.run_number }})" \
-            --notes "Otomatik derleme: ${{ github.sha }}" \
+          gh release create latest golf-obd.apk revora-test.apk \
+            --title "Golf OBD + Revora (build ${{ github.run_number }})" \
+            --notes "Otomatik derleme: ${{ github.sha }}. golf-obd.apk = kişisel sürüm (Garaj dahil), revora-test.apk = mağaza sürümünün test APK'sı." \
             --latest

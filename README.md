@@ -25,10 +25,23 @@ Telefon yatay çevrilince ana gösterge araç ekranı düzenine geçer.
 
 Standart OBD (mod 01): devir, hız, su sıcaklığı, emme sıcaklığı, dış sıcaklık, motor yükü, gaz pedalı ve akü voltajı (`ATRV`).
 
+## İki sürüm
+
+Aynı koddan iki uygulama çıkar:
+
+| Sürüm | Dosya | Paket | İçerik |
+|---|---|---|---|
+| Kişisel | `golf-obd.apk` | `app.obdgolf` | Golf Mk6 görünümü, Garaj (3D), VW'ye özel satırlar. Mağazaya yüklenmez. |
+| Mağaza (Revora) | `revora-test.apk`, Play için `revora.aab` | `app.revora` | Marka adı ve logosu yok, Garaj yok. Google Play'e bu gider. |
+
+Sadece bir sürümün kullandığı kod ve dosyalar `app/src/personal/` ya da `app/src/store/` altındadır. İkisindeki `Edition.kt` farkları (Garaj, rozet, başlık) tek yerde tutar. Android Studio'da sürüm **Build Variants** penceresinden seçilir (`personalDebug` / `storeDebug`).
+
+Play paketi (`revora.aab`) sadece yükleme anahtarı GitHub Secrets'a eklendiğinde derlenir: `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_KEYSTORE_PASSWORD`, `UPLOAD_KEY_ALIAS`, `UPLOAD_KEY_PASSWORD`.
+
 ## Proje yapısı
 
 - `core/`: Android'den bağımsız OBD mantığı (ELM327 komutları, PID çözümleme, demo adaptör). Testleri `CORE_ONLY=1 ./gradlew :core:test` ile Android SDK olmadan çalışır.
-- `app/`: Jetpack Compose arayüzü ve Bluetooth bağlantısı.
+- `app/`: Jetpack Compose arayüzü ve Bluetooth bağlantısı. `src/main` ortak, `src/personal` ve `src/store` sürüme özel.
 - `design/`: ekran tasarımlarının kaynağı.
 - `.github/workflows/build.yml`: testler, APK derleme ve "latest" sürümü.
 
@@ -42,6 +55,6 @@ Standart OBD (mod 01): devir, hız, su sıcaklığı, emme sıcaklığı, dış 
 
 ## Lisanslar
 
-Sora yazı tipi SIL Open Font License 1.1 ile dağıtılır (Google Fonts). three.js MIT lisanslıdır (`app/src/main/assets/garage3d/THREE_LICENSE.txt`).
+Sora yazı tipi SIL Open Font License 1.1 ile dağıtılır (Google Fonts). three.js MIT lisanslıdır (`app/src/personal/assets/garage3d/THREE_LICENSE.txt`).
 
-Garajdaki 3D araba modeli: "Volkswagen Golf 6" (https://sketchfab.com/3d-models/volkswagen-golf-6-46d9c43124b94f6293920944bef5b563), Nieve5677 (https://sketchfab.com/niev), CC BY 4.0 lisanslı. Uygulamada kapı, kaput ve bagaj açılsın diye parçalara ayrılıyor, motor bölmesi bizim çizimimiz. Ayrıntı: `app/src/main/assets/garage3d/golf6/license.txt`.
+Garajdaki 3D araba modeli: "Volkswagen Golf 6" (https://sketchfab.com/3d-models/volkswagen-golf-6-46d9c43124b94f6293920944bef5b563), Nieve5677 (https://sketchfab.com/niev), CC BY 4.0 lisanslı. Uygulamada kapı, kaput ve bagaj açılsın diye parçalara ayrılıyor, motor bölmesi bizim çizimimiz. Ayrıntı: `app/src/personal/assets/garage3d/golf6/license.txt`.

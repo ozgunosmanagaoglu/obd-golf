@@ -1,7 +1,7 @@
 """Builds the offline app copy of the 3D garage from design/garage3d.html.
 
 The design page loads three.js and fonts from CDNs; the app copy uses the files
-bundled in app/src/main/assets/garage3d/ so it works without internet in the car.
+bundled in app/src/personal/assets/garage3d/ so it works without internet in the car.
 Run: python3 tools/build_garage3d.py
 """
 from pathlib import Path
@@ -27,5 +27,5 @@ page = (
     "<style>*{box-sizing:border-box}body{margin:0}</style>\n"
     "</head>\n<body>\n" + src + "\n</body>\n</html>\n"
 )
-(root / "app/src/main/assets/garage3d/index.html").write_text(page, encoding="utf-8")
-print("wrote app/src/main/assets/garage3d/index.html")
+(root / "app/src/personal/assets/garage3d/index.html").write_text(page, encoding="utf-8")
+print("wrote app/src/personal/assets/garage3d/index.html")
