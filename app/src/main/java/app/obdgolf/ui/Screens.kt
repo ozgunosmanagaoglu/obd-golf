@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.obdgolf.LinkState
+import app.obdgolf.ble.BleDevice
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
 import app.obdgolf.core.WifiAddress
@@ -136,6 +137,11 @@ fun ConnectScreen(
     onConnect: (PairedDevice) -> Unit,
     wifiAddress: WifiAddress,
     onConnectWifi: (WifiAddress) -> Unit,
+    bleDevices: List<BleDevice>,
+    bleScanning: Boolean,
+    bleStatus: String?,
+    onScanBle: () -> Unit,
+    onConnectBle: (BleDevice) -> Unit,
     onDisconnect: () -> Unit,
     onRefresh: () -> Unit,
     onAutoConnect: (Boolean) -> Unit,
@@ -179,7 +185,7 @@ fun ConnectScreen(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionLabel("Eşleşmiş cihazlar", Modifier.weight(1f))
+            SectionLabel("Klasik Bluetooth (eşleşmiş)", Modifier.weight(1f))
             Text("Yenile", color = Color(0xFFFF4D5E), fontSize = 13.sp,
                 modifier = Modifier.clickable(onClick = onRefresh).padding(8.dp))
         }
@@ -203,6 +209,40 @@ fun ConnectScreen(
                             color = if (current) C.Green else C.Muted, fontSize = 13.sp,
                         )
                     }
+                }
+            }
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel("Bluetooth LE adaptör", Modifier.weight(1f))
+            Text(if (bleScanning) "Aranıyor…" else "Ara", color = Color(0xFFFF4D5E), fontSize = 13.sp,
+                modifier = Modifier.clickable(enabled = !bleScanning, onClick = onScanBle).padding(8.dp))
+        }
+        Card {
+            if (bleDevices.isEmpty()) {
+                Text(
+                    bleStatus ?: "BLE adaptörler (Vgate BLE, vLinker, OBDLink CX, Veepeak…) telefonda eşleştirilmez. " +
+                        "Adaptörü takıp kontağı aç, sonra \"Ara\"ya bas.",
+                    color = C.Muted, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
+                )
+            } else {
+                bleDevices.forEachIndexed { i, dev ->
+                    if (i > 0) HorizontalDivider(color = C.Divider)
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { onConnectBle(dev) }.padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(dev.name, color = C.Text, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                        val current = (link as? LinkState.Connected)?.name == dev.name
+                        Text(
+                            when { current -> "Bağlı"; dev.looksLikeObd -> "Bağlan"; else -> "OBD değil?" },
+                            color = if (current) C.Green else C.Muted, fontSize = 13.sp,
+                        )
+                    }
+                }
+                bleStatus?.let {
+                    HorizontalDivider(color = C.Divider)
+                    Text(it, color = C.Muted, fontSize = 13.sp, modifier = Modifier.padding(16.dp))
                 }
             }
         }

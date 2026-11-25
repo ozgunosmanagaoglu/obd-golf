@@ -81,6 +81,31 @@ class MainActivity : ComponentActivity() {
             fromButton = false
         }
 
+    /** Permissions a BLE scan needs: "Nearby devices" on Android 12+, location before that. */
+    private fun missingScanPermissions(): List<String> =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) missingBluetoothPermissions()
+        else listOf(Manifest.permission.ACCESS_FINE_LOCATION).filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+    private val askScan =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            val missing = missingScanPermissions()
+            if (missing.isEmpty()) {
+                vm.setPermissionMissing(false)
+                vm.scanBle()
+            } else if (missing.none { shouldShowRequestPermissionRationale(it) }) {
+                openAppSettings()
+            } else {
+                vm.setBleStatus("Tarama için izin gerekli.")
+            }
+        }
+
+    private fun scanBleWithPermission() {
+        val missing = missingScanPermissions()
+        if (missing.isEmpty()) vm.scanBle() else askScan.launch(missing.toTypedArray())
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -94,7 +119,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             ObdTheme {
-                App(vm, onConnect = ::connectWithPermission, onGrantPermission = ::requestBluetoothPermission)
+                App(
+                    vm,
+                    onConnect = ::connectWithPermission,
+                    onGrantPermission = ::requestBluetoothPermission,
+                    onScanBle = ::scanBleWithPermission,
+                )
             }
         }
     }
@@ -150,12 +180,12 @@ private enum class Tab(val label: String) {
 private val homeTab = Tab.Dashboard
 
 @Composable
-private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit) {
+private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit, onScanBle: () -> Unit) {
     val link by vm.link.collectAsState()
     var splash by rememberSaveable { mutableStateOf(true) }
 
     Box(Modifier.fillMaxSize().background(C.Bg)) {
-        MainContent(vm, onConnect, onGrantPermission)
+        MainContent(vm, onConnect, onGrantPermission, onScanBle)
         // Loading screen on top while Bluetooth and auto-connect start underneath.
         AnimatedVisibility(visible = splash, exit = fadeOut(tween(350))) {
             val status = when (val l = link) {
@@ -169,7 +199,7 @@ private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPerm
 }
 
 @Composable
-private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit) {
+private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit, onScanBle: () -> Unit) {
     val data by vm.data.collectAsState()
     val link by vm.link.collectAsState()
     val devices by vm.devices.collectAsState()
@@ -179,6 +209,9 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val faults by vm.faults.collectAsState()
     val permissionMissing by vm.permissionMissing.collectAsState()
     val wifiAddress by vm.wifiAddress.collectAsState()
+    val bleDevices by vm.bleDevices.collectAsState()
+    val bleScanning by vm.bleScanning.collectAsState()
+    val bleStatus by vm.bleStatus.collectAsState()
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -211,6 +244,11 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                         onConnect = { onConnect(it); tab = homeTab },
                         wifiAddress = wifiAddress,
                         onConnectWifi = { vm.connectWifi(it); tab = homeTab },
+                        bleDevices = bleDevices,
+                        bleScanning = bleScanning,
+                        bleStatus = bleStatus,
+                        onScanBle = onScanBle,
+                        onConnectBle = { vm.connectBle(it); tab = homeTab },
                         onDisconnect = vm::disconnect,
                         onRefresh = vm::refreshDevices,
                         onAutoConnect = vm::setAutoConnect,

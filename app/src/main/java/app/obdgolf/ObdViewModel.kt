@@ -8,6 +8,8 @@ import androidx.core.content.ContextCompat
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.obdgolf.ble.BleConnector
+import app.obdgolf.ble.BleDevice
 import app.obdgolf.bt.BluetoothConnector
 import app.obdgolf.bt.BluetoothPermissionException
 import app.obdgolf.bt.PairedDevice
@@ -45,6 +47,7 @@ sealed interface FaultState {
 class ObdViewModel(app: Application) : AndroidViewModel(app) {
     private val bt = BluetoothConnector(app)
     private val wifi = WifiConnector(app)
+    private val ble = BleConnector(app)
     private val prefs = app.getSharedPreferences("obd", Context.MODE_PRIVATE)
 
     private val _data = MutableStateFlow(CarData())
@@ -64,6 +67,15 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         prefs.getString("wifi_addr", null)?.let(WifiAddress::parse) ?: WifiAddress.DEFAULT
     )
     val wifiAddress: StateFlow<WifiAddress> = _wifiAddress.asStateFlow()
+
+    private val _bleDevices = MutableStateFlow<List<BleDevice>>(emptyList())
+    val bleDevices: StateFlow<List<BleDevice>> = _bleDevices.asStateFlow()
+    private val _bleScanning = MutableStateFlow(false)
+    val bleScanning: StateFlow<Boolean> = _bleScanning.asStateFlow()
+    /** Last scan problem or result note shown under the BLE list, null when there is nothing to say. */
+    private val _bleStatus = MutableStateFlow<String?>(null)
+    val bleStatus: StateFlow<String?> = _bleStatus.asStateFlow()
+    private var scanJob: Job? = null
 
     private val _demo = MutableStateFlow(prefs.getBoolean("demo", false))
     val demo: StateFlow<Boolean> = _demo.asStateFlow()
@@ -140,7 +152,9 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         when {
             _demo.value -> startDemo()
             _autoConnect.value -> prefs.getString("last", null)?.let { last ->
-                if (last.startsWith(WIFI_PREFIX)) {
+                if (last.startsWith(BLE_PREFIX)) {
+                    connectBle(BleDevice(prefs.getString("ble_name", null) ?: "BLE adaptör", last.removePrefix(BLE_PREFIX)))
+                } else if (last.startsWith(WIFI_PREFIX)) {
                     WifiAddress.parse(last.removePrefix(WIFI_PREFIX))?.let { connectWifi(it) }
                 } else {
                     _devices.value.firstOrNull { it.address == last }?.let { connect(it) }
@@ -176,6 +190,35 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         _wifiAddress.value = address
         prefs.edit().putString("wifi_addr", address.toString()).putString("last", WIFI_PREFIX + address).apply()
         start("Wi-Fi $address") { wifi.connect(address) }
+    }
+
+    /** Looks for BLE adapters for 8 seconds; they are not paired in the phone settings. */
+    fun scanBle() {
+        if (scanJob?.isActive == true) return
+        scanJob = viewModelScope.launch {
+            _bleScanning.value = true
+            _bleStatus.value = null
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(8_000) { ble.scan().collect { _bleDevices.value = it } }
+                if (_bleDevices.value.isEmpty()) {
+                    _bleStatus.value = "BLE cihaz bulunamadı. Adaptör takılı ve kontak açık mı?"
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _bleStatus.value = e.message ?: "BLE taraması başarısız"
+            } finally {
+                _bleScanning.value = false
+            }
+        }
+    }
+
+    fun setBleStatus(text: String?) { _bleStatus.value = text }
+
+    fun connectBle(device: BleDevice) {
+        scanJob?.cancel()
+        prefs.edit().putString("last", BLE_PREFIX + device.address).putString("ble_name", device.name).apply()
+        start(device.name) { ble.connect(device.address) }
     }
 
     fun setDemo(on: Boolean) {
@@ -255,3 +298,6 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
 /** Marks a Wi-Fi adapter in the "last" preference (Bluetooth ones are stored by MAC address). */
 private const val WIFI_PREFIX = "wifi:"
+
+/** Marks a Bluetooth LE adapter in the "last" preference. */
+private const val BLE_PREFIX = "ble:"
