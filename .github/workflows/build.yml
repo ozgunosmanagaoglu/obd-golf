@@ -35,6 +35,7 @@ jobs:
           path: golf-obd.apk
 
       # Keeps one always-current download link: Releases > "latest".
+      # Not a prerelease: GitHub's /releases/latest link skips prereleases.
       - name: Publish to the "latest" release
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
@@ -44,4 +45,4 @@ jobs:
           gh release create latest golf-obd.apk \
             --title "Golf OBD (build ${{ github.run_number }})" \
             --notes "Otomatik derleme: ${{ github.sha }}" \
-            --prerelease
+            --latest
