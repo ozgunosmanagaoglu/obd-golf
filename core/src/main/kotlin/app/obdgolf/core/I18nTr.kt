@@ -65,6 +65,10 @@ internal val TR_STRINGS: Map<Str, String> = mapOf(
     BG_HINT to "Bazı telefonlar (ör. Xiaomi, Samsung) pil için arka plandaki uygulamaları durdurur. Ekran kapalıyken de sürüş kaydı devam etsin diye Revora'nın pil ayarını \"Kısıtlama yok\" yap.",
     BG_OK to "Pil: kısıtlama yok. Revora ekran kapalıyken de çalışır.",
     BG_OPEN to "Pil ayarlarını aç",
+    PRESET_MINIMAL to "Sade",
+    PRESET_SPORT to "Spor",
+    PRESET_ECO to "Ekonomik",
+    PRESET_DIAGNOSTIC to "Teşhis",
 
     CONNECTED_WITH to "Bağlı · {0}",
     PERMISSION_NEEDED to "İzin gerekli",

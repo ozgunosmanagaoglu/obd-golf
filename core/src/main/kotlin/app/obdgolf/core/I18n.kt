@@ -149,6 +149,10 @@ enum class Str(val en: String) {
     BG_HINT("Some phones (e.g. Xiaomi, Samsung) stop apps in the background to save battery. Set Revora's battery setting to \"No restrictions\" so the drive log keeps running with the screen off."),
     BG_OK("Battery: no restrictions. Revora keeps running with the screen off."),
     BG_OPEN("Open battery settings"),
+    PRESET_MINIMAL("Minimal"),
+    PRESET_SPORT("Sport"),
+    PRESET_ECO("Eco"),
+    PRESET_DIAGNOSTIC("Diagnostic"),
 
     // Connection screen
     CONNECTED_WITH("Connected · {0}"),
