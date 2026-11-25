@@ -28,7 +28,7 @@ in under a second, at arm's length, at night.
 ## 4. Customisation (Faz 4b)
 - Presets are Minimal, Sport, Eco and Diagnostic. The user then reorders tiles, picks a style per tile,
   resizes tiles (1×1, 2×1, 2×2), adds pages and swipes between them. There is always a "Reset to preset".
-- Saved in DataStore (`DashboardCodec`). It survives restarts and updates; unknown tiles from newer versions are skipped.
+- Saved on the phone as plain text (`DashboardCodec`, in the app preferences next to the other settings). It survives restarts and updates; unknown tiles from newer versions are skipped.
 - The same dashboard adapts to phone portrait (2 columns), landscape and tablet (4 columns), and
   head units 1024×600 and 1280×720 (4 columns, larger type).
 

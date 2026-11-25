@@ -175,7 +175,7 @@ enum class Preset(val id: String, val label: Str) {
 }
 
 /**
- * Saves a dashboard as plain text (kept in DataStore; readable in a bug report):
+ * Saves a dashboard as plain text (kept in the app preferences; readable in a bug report):
  * line 1 is the preset id, then one line per page with tiles "metric,style,size,above,below,alarms" joined by ";".
  * Unknown metrics or styles (e.g. written by a newer version) fall back instead of failing.
  */
