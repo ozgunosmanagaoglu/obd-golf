@@ -20,7 +20,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Golf OBD"
+        android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.ObdGolf"
         tools:targetApi="35">
