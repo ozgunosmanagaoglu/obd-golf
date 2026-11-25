@@ -52,6 +52,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.ui.C
 import app.obdgolf.ui.ConnectScreen
@@ -164,6 +169,7 @@ class MainActivity : ComponentActivity() {
         if (vm.permissionMissing.value) vm.setPermissionMissing(missingBluetoothPermissions().isNotEmpty())
         vm.refreshDevices()
         vm.refreshBattery()
+        vm.refreshOverlay()
     }
 
     private fun missingBluetoothPermissions(): List<String> =
@@ -261,13 +267,17 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val batteryUnrestricted by vm.batteryUnrestricted.collectAsState()
     val dashboard by vm.dashboard.collectAsState()
     val history by vm.history.collectAsState()
+    val startOnBoot by vm.startOnBoot.collectAsState()
+    val overlayAllowed by vm.overlayAllowed.collectAsState()
     val theme by vm.theme.collectAsState()
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     CompositionLocalProvider(LocalUnits provides units) {
     Box(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding().navigationBarsPadding()) {
-        if (landscape && tab == Tab.Dashboard) {
+        val carMode = landscape && tab == Tab.Dashboard
+        ImmersiveWhile(carMode)
+        if (carMode) {
             DashboardScreen(data, link, dashboard, history, { tab = Tab.Connect }, vm::setDashboard, carScreen = true)
             return@Box
         }
@@ -317,6 +327,10 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                     onOpenBattery = vm::openBatterySettings,
                     theme = theme,
                     onTheme = vm::setTheme,
+                    startOnBoot = startOnBoot,
+                    onStartOnBoot = vm::setStartOnBoot,
+                    overlayAllowed = overlayAllowed,
+                    onAllowOverlay = vm::openOverlaySettings,
                 )
             }
         }
@@ -375,5 +389,23 @@ private fun TabBar(tab: Tab, vertical: Boolean, onSelect: (Tab) -> Unit) {
         Row(bar.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             Tab.entries.forEach { item(it, Modifier.weight(1f)) }
         }
+    }
+}
+
+/**
+ * Full screen on the car screen: status and navigation bars hide (a swipe from the edge shows them
+ * for a moment), so a head unit shows only the gauges. Restored as soon as the car screen closes.
+ */
+@Composable
+private fun ImmersiveWhile(on: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(on) {
+        val window = (view.context as? android.app.Activity)?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+        if (on) {
+            controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller?.hide(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose { if (on) controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
 }

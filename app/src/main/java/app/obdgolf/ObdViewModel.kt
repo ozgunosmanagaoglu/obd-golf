@@ -337,6 +337,36 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putBoolean("auto", on).apply()
     }
 
+    private val _startOnBoot = MutableStateFlow(prefs.getBoolean(BootReceiver.PREF, false))
+    /** Head units: open the app when the device starts with the ignition (see [BootReceiver]). */
+    val startOnBoot: StateFlow<Boolean> = _startOnBoot.asStateFlow()
+
+    fun setStartOnBoot(on: Boolean) {
+        _startOnBoot.value = on
+        prefs.edit().putBoolean(BootReceiver.PREF, on).apply()
+        refreshOverlay()
+    }
+
+    private val _overlayAllowed = MutableStateFlow(true)
+    /** False on Android 10+ until "display over other apps" is allowed; needed to open after boot. */
+    val overlayAllowed: StateFlow<Boolean> = _overlayAllowed.asStateFlow()
+
+    fun refreshOverlay() {
+        _overlayAllowed.value = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            android.provider.Settings.canDrawOverlays(getApplication())
+    }
+
+    fun openOverlaySettings() {
+        val app = getApplication<Application>()
+        runCatching {
+            app.startActivity(
+                android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.fromParts("package", app.packageName, null))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+    }
+
     private val _theme = MutableStateFlow(ThemeMode.byId(prefs.getString("theme", null)))
     val theme: StateFlow<ThemeMode> = _theme.asStateFlow()
 

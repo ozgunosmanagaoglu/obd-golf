@@ -204,6 +204,10 @@ fun ConnectScreen(
     onOpenBattery: () -> Unit = {},
     theme: ThemeMode = ThemeMode.DARK,
     onTheme: (ThemeMode) -> Unit = {},
+    startOnBoot: Boolean = false,
+    onStartOnBoot: (Boolean) -> Unit = {},
+    overlayAllowed: Boolean = true,
+    onAllowOverlay: () -> Unit = {},
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -354,6 +358,17 @@ fun ConnectScreen(
             ToggleRow(s(Str.AUTO_CONNECT), autoConnect, onAutoConnect)
             HorizontalDivider(color = C.Divider)
             ToggleRow(s(Str.DEMO_MODE), demo, onDemo)
+            HorizontalDivider(color = C.Divider)
+            ToggleRow(s(Str.BOOT_START), startOnBoot, onStartOnBoot)
+            Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(s(Str.BOOT_HINT), color = C.Muted, fontSize = 13.sp)
+                if (startOnBoot && !overlayAllowed) {
+                    Text(s(Str.BOOT_NEEDS_OVERLAY), color = C.Amber, fontSize = 13.sp)
+                    OutlinedButton(onClick = onAllowOverlay, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text(s(Str.BOOT_ALLOW), color = C.Text)
+                    }
+                }
+            }
         }
 
         SectionLabel(s(Str.LANGUAGE))

@@ -183,6 +183,10 @@ enum class Str(val en: String) {
     THEME_DARK("Dark"),
     THEME_LIGHT("Light"),
     THEME_CONTRAST("High contrast"),
+    BOOT_START("Open when the car starts"),
+    BOOT_HINT("For screens built into the car: Revora opens and connects by itself when the ignition turns on."),
+    BOOT_NEEDS_OVERLAY("Android only lets an app open by itself when \"Display over other apps\" is allowed for it."),
+    BOOT_ALLOW("Allow display over other apps"),
 
     // Connection screen
     CONNECTED_WITH("Connected · {0}"),

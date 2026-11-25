@@ -99,6 +99,10 @@ internal val TR_STRINGS: Map<Str, String> = mapOf(
     THEME_DARK to "Koyu",
     THEME_LIGHT to "Açık",
     THEME_CONTRAST to "Yüksek kontrast",
+    BOOT_START to "Araç çalışınca aç",
+    BOOT_HINT to "Araca takılı ekranlar için: kontak açılınca Revora kendiliğinden açılır ve bağlanır.",
+    BOOT_NEEDS_OVERLAY to "Android, bir uygulamanın kendiliğinden açılmasına sadece \"Diğer uygulamaların üzerinde göster\" izni varsa izin verir.",
+    BOOT_ALLOW to "Diğer uygulamaların üzerinde göstermeye izin ver",
 
     CONNECTED_WITH to "Bağlı · {0}",
     PERMISSION_NEEDED to "İzin gerekli",
