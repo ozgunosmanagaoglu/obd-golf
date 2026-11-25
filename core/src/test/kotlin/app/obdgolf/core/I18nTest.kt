@@ -29,9 +29,13 @@ class I18nTest {
 
     @Test fun dtcTablesCoverTheSameCodes() {
         for (lang in Lang.entries) {
-            val codes = DtcInfo.codes(lang)
-            if (codes.isNotEmpty()) assertEquals(DtcInfo.codes(Lang.EN), codes, lang.code)
+            assertEquals(DtcInfo.codes(Lang.EN), DtcInfo.codes(lang), lang.code)
         }
+    }
+
+    @Test fun dtcTextsAreTranslated() {
+        assertEquals("Zündspule Zylinder 3 Stromkreis", DtcInfo.describe("P0353", Lang.DE))
+        assertEquals("Mieszanka zbyt uboga (lewe powietrze, MAF lub wtryskiwacz)", DtcInfo.describe("P0171", Lang.PL))
     }
 
     @Test fun picksLanguageFromPhoneLocale() {

@@ -2,7 +2,7 @@ package app.obdgolf.core
 
 /**
  * Fault code descriptions. Exact texts for common generic (SAE) codes; everything else gets the
- * description of its group. English is the base; other languages fall back to it per code.
+ * description of its group. English is the base; every language has its own table (DtcXx.kt).
  */
 object DtcInfo {
     private val EN = mapOf(
@@ -251,7 +251,11 @@ object DtcInfo {
         "U0155" to "Gösterge paneli ile iletişim yok",
     )
 
-    private val tables: Map<Lang, Map<String, String>> = mapOf(Lang.EN to EN, Lang.TR to TR)
+    private val tables: Map<Lang, Map<String, String>> = mapOf(
+        Lang.EN to EN, Lang.TR to TR, Lang.DE to DTC_DE, Lang.FR to DTC_FR, Lang.ES to DTC_ES,
+        Lang.IT to DTC_IT, Lang.PT to DTC_PT, Lang.NL to DTC_NL, Lang.PL to DTC_PL, Lang.CS to DTC_CS,
+        Lang.RU to DTC_RU, Lang.UK to DTC_UK,
+    )
 
     /** Codes with an exact text, per language (for tests). */
     internal fun codes(lang: Lang): Set<String> = tables[lang]?.keys.orEmpty()
