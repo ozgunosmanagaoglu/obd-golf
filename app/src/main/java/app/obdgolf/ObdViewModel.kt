@@ -18,6 +18,8 @@ import app.obdgolf.core.DriveRecorder
 import app.obdgolf.core.ElmIo
 import app.obdgolf.core.FaultReport
 import app.obdgolf.core.ObdSession
+import app.obdgolf.core.WifiAddress
+import app.obdgolf.wifi.WifiConnector
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -42,6 +44,7 @@ sealed interface FaultState {
 
 class ObdViewModel(app: Application) : AndroidViewModel(app) {
     private val bt = BluetoothConnector(app)
+    private val wifi = WifiConnector(app)
     private val prefs = app.getSharedPreferences("obd", Context.MODE_PRIVATE)
 
     private val _data = MutableStateFlow(CarData())
@@ -55,6 +58,12 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _autoConnect = MutableStateFlow(prefs.getBoolean("auto", true))
     val autoConnect: StateFlow<Boolean> = _autoConnect.asStateFlow()
+
+    /** Address of the Wi-Fi adapter, editable on the Connect screen. */
+    private val _wifiAddress = MutableStateFlow(
+        prefs.getString("wifi_addr", null)?.let(WifiAddress::parse) ?: WifiAddress.DEFAULT
+    )
+    val wifiAddress: StateFlow<WifiAddress> = _wifiAddress.asStateFlow()
 
     private val _demo = MutableStateFlow(prefs.getBoolean("demo", false))
     val demo: StateFlow<Boolean> = _demo.asStateFlow()
@@ -130,8 +139,12 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         if (job != null) return
         when {
             _demo.value -> startDemo()
-            _autoConnect.value -> prefs.getString("last", null)?.let { addr ->
-                _devices.value.firstOrNull { it.address == addr }?.let { connect(it) }
+            _autoConnect.value -> prefs.getString("last", null)?.let { last ->
+                if (last.startsWith(WIFI_PREFIX)) {
+                    WifiAddress.parse(last.removePrefix(WIFI_PREFIX))?.let { connectWifi(it) }
+                } else {
+                    _devices.value.firstOrNull { it.address == last }?.let { connect(it) }
+                }
             }
         }
     }
@@ -157,6 +170,12 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
     fun connect(device: PairedDevice) {
         prefs.edit().putString("last", device.address).apply()
         start(device.name) { bt.connect(device.address) }
+    }
+
+    fun connectWifi(address: WifiAddress) {
+        _wifiAddress.value = address
+        prefs.edit().putString("wifi_addr", address.toString()).putString("last", WIFI_PREFIX + address).apply()
+        start("Wi-Fi $address") { wifi.connect(address) }
     }
 
     fun setDemo(on: Boolean) {
@@ -233,3 +252,6 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() = disconnect()
 }
+
+/** Marks a Wi-Fi adapter in the "last" preference (Bluetooth ones are stored by MAC address). */
+private const val WIFI_PREFIX = "wifi:"

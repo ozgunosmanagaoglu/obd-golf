@@ -178,6 +178,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val drives by vm.drives.collectAsState()
     val faults by vm.faults.collectAsState()
     val permissionMissing by vm.permissionMissing.collectAsState()
+    val wifiAddress by vm.wifiAddress.collectAsState()
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -208,6 +209,8 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                         permissionMissing = permissionMissing,
                         onGrantPermission = onGrantPermission,
                         onConnect = { onConnect(it); tab = homeTab },
+                        wifiAddress = wifiAddress,
+                        onConnectWifi = { vm.connectWifi(it); tab = homeTab },
                         onDisconnect = vm::disconnect,
                         onRefresh = vm::refreshDevices,
                         onAutoConnect = vm::setAutoConnect,

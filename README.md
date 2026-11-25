@@ -15,6 +15,8 @@ OBD-II araçlar için Android gösterge uygulaması. ELM327 uyumlu adaptörlerle
 3. Uygulamada **Bağlantı** sekmesinden adaptörü seç. Sonraki açılışlarda kendisi bağlanır.
 4. Araba yokken denemek için **Demo modu**nu aç.
 
+**Wi-Fi adaptör:** Adaptörü tak, telefonun Wi-Fi ayarlarından adaptörün ağına bağlan (genelde `WiFi_OBDII`), sonra **Bağlantı** sekmesinde adresi kontrol edip (çoğunda `192.168.0.10:35000`) **Wi-Fi ile bağlan**'a bas. Adaptörün ağında internet olmadığı için uygulama bağlantıyı özellikle bu Wi-Fi üzerinden açar.
+
 **Geçmiş** sekmesi her sürüşü kendiliğinden kaydeder: süre, mesafe, ortalama ve en yüksek hız, en yüksek devir, rölantide geçen süre, en yüksek su sıcaklığı, en düşük akü voltajı ve hız, devir ve sıcaklık grafikleri. Motor 30 saniye kapalı kalınca sürüş biter, 30 saniyeden kısa kayıtlar tutulmaz. Kayıtlar sadece telefonda durur.
 
 Telefon yatay çevrilince ana gösterge araç ekranı düzenine geçer.
