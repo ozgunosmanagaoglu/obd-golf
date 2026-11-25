@@ -38,7 +38,8 @@ fun MeasuringBlockCard(state: BlockState, onRead: (VagUnit, Int) -> Unit) {
     val busy = state is BlockState.Busy
 
     SectionLabel(s(Str.MB_TITLE))
-    Segmented(VagUnit.entries, unit, { s(it.label) }) { unit = it }
+    val strings = LocalStrings.current
+    Segmented(VagUnit.entries, unit, { strings[it.label] }) { unit = it }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = { group = (group - 1).coerceAtLeast(0) }, shape = RoundedCornerShape(12.dp)) { Text("−", color = C.Text) }
         Text(s(Str.MB_GROUP, "%03d".format(group)), color = C.Text, fontWeight = FontWeight.SemiBold,
