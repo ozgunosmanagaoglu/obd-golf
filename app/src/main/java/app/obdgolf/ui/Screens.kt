@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.obdgolf.Edition
 import app.obdgolf.LinkState
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
@@ -38,10 +37,10 @@ import app.obdgolf.core.CarData
 @Composable
 fun Header(link: LinkState, onLinkClick: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Badge(Edition.BADGE)
+        Badge(Brand.BADGE)
         Column(Modifier.padding(start = 10.dp).weight(1f)) {
-            Text(Edition.TITLE, color = C.Text, fontWeight = FontWeight.Bold, fontSize = 17.sp, letterSpacing = 0.7.sp)
-            Text(Edition.SUBTITLE, color = C.Muted, fontSize = 12.sp)
+            Text(Brand.TITLE, color = C.Text, fontWeight = FontWeight.Bold, fontSize = 17.sp, letterSpacing = 0.7.sp)
+            Text(Brand.SUBTITLE, color = C.Muted, fontSize = 12.sp)
         }
         LinkChip(link, onLinkClick)
     }
@@ -111,25 +110,6 @@ fun DetailsScreen(d: CarData) {
             ).forEachIndexed { i, (l, v) ->
                 if (i > 0) HorizontalDivider(color = C.Divider)
                 RowItem(l, if (v.startsWith("—")) "—" else v)
-            }
-        }
-        if (Edition.SHOW_VW_EXTRAS) VwExtras()
-    }
-}
-
-/** Placeholder rows for the VW-only values (personal build only, for now). */
-@Composable
-private fun VwExtras() {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionLabel("VW'ye özel", Modifier.weight(1f))
-            Text("Yakında", color = Color(0xFFFF8A95), fontSize = 11.sp,
-                modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFF3A0A10)).padding(horizontal = 8.dp, vertical = 3.dp))
-        }
-        Card {
-            listOf("Yağ sıcaklığı", "DSG sıcaklığı", "Turbo basıncı", "Klima / iç sıcaklık", "Yakıt tüketimi").forEachIndexed { i, l ->
-                if (i > 0) HorizontalDivider(color = C.Divider)
-                RowItem(l, "—", muted = true)
             }
         }
     }
@@ -243,8 +223,8 @@ fun Card(modifier: Modifier = Modifier, content: @Composable () -> Unit) =
 fun CarScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Badge(Edition.BADGE)
-            Text(Edition.TITLE, color = C.Text, fontWeight = FontWeight.Bold, fontSize = 20.sp,
+            Badge(Brand.BADGE)
+            Text(Brand.TITLE, color = C.Text, fontWeight = FontWeight.Bold, fontSize = 20.sp,
                 modifier = Modifier.padding(start = 12.dp).weight(1f))
             Text("Dış ${d.ambientC.fmt()} °C", color = C.Muted, fontSize = 15.sp, modifier = Modifier.padding(end = 16.dp))
             LinkChip(link, onLinkClick)
@@ -260,10 +240,6 @@ fun CarScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
                     Triple("Akü", d.batteryV.fmt(1), "V"),
                     Triple("Motor yükü", d.loadPct.fmt(), "%"),
                     Triple("Emme sıcaklığı", d.intakeC.fmt(), "°C"),
-                ) + if (Edition.SHOW_VW_EXTRAS) listOf(
-                    Triple("Yağ sıcaklığı", "—", "°C"),
-                    Triple("DSG sıcaklığı", "—", "°C"),
-                ) else listOf(
                     Triple("Gaz pedalı", d.throttlePct.fmt(), "%"),
                     Triple("Dış sıcaklık", d.ambientC.fmt(), "°C"),
                 )
