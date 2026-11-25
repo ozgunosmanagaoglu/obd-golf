@@ -35,7 +35,7 @@ Birimler **Bağlantı → Birimler** bölümünden seçilir: km/h·km ya da mph�
 
 ## Diller
 
-Desteklenen diller: İngilizce, Türkçe, Almanca, Fransızca, İspanyolca, İtalyanca, Portekizce, Felemenkçe, Lehçe, Çekçe, Rusça, Ukraynaca. Uygulama ilk açılışta telefonun dilini kullanır (elimizde yoksa İngilizce); **Bağlantı → Dil** bölümünden değiştirilebilir. Tüm yazılar `core/.../I18n.kt` içindeki `Str` listesindedir (İngilizce metniyle birlikte); her dil ayrı bir dosyada (`I18nTr.kt` gibi) çevirileri tutar. Arıza kodu açıklamaları `DtcInfo.kt` içindedir (şimdilik İngilizce ve Türkçe; diğer dillerde kod grubu açıklaması çevrilir, tam metin İngilizce kalır). `I18nTest` her dilin her yazıyı ve aynı `{0}` yer tutucularını içerdiğini kontrol eder; yeni dil eklemek için `Lang`'a bir satır ve bir çeviri dosyası yeter.
+Desteklenen diller: İngilizce, Türkçe, Almanca, Fransızca, İspanyolca, İtalyanca, Portekizce, Felemenkçe, Lehçe, Çekçe, Rusça, Ukraynaca. Uygulama ilk açılışta telefonun dilini kullanır (elimizde yoksa İngilizce); **Bağlantı → Dil** bölümünden değiştirilebilir. Tüm yazılar `core/.../I18n.kt` içindeki `Str` listesindedir (İngilizce metniyle birlikte); her dil ayrı bir dosyada (`I18nTr.kt` gibi) çevirileri tutar. Arıza kodu açıklamaları `DtcInfo.kt` (İngilizce, Türkçe) ve `DtcXx.kt` (diğer diller) içindedir; test hepsinin aynı kodları kapsadığını kontrol eder. `I18nTest` her dilin her yazıyı ve aynı `{0}` yer tutucularını içerdiğini kontrol eder; yeni dil eklemek için `Lang`'a bir satır ve bir çeviri dosyası yeter.
 
 ## Google Play paketi
 
