@@ -256,6 +256,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val faults by vm.faults.collectAsState()
     val measuring by vm.measuring.collectAsState()
     val block by vm.block.collectAsState()
+    val controlUnits by vm.controlUnits.collectAsState()
     val permissionMissing by vm.permissionMissing.collectAsState()
     val wifiAddress by vm.wifiAddress.collectAsState()
     val vehicle by vm.vehicle.collectAsState()
@@ -289,6 +290,8 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                     measuring = measuring && link is LinkState.Connected,
                     block = block,
                     onReadBlock = vm::readBlock,
+                    controlUnits = controlUnits,
+                    onReadUnits = vm::readUnits,
                 )
                 Tab.Faults -> FaultScreen(
                     state = faults,

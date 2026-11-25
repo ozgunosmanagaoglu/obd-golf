@@ -21,7 +21,33 @@ class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : Elm
     private var header = "7DF"
 
     // Older VW cars: engine, DSG and climate measuring blocks over TP2.0.
-    private val tp20 = Tp20Sim(setOf(0x01, 0x02, 0x08)) { unit, group -> demoBlock(unit, group) }
+    private val tp20 = Tp20Sim(setOf(0x01, 0x02, 0x08), { unit, group -> demoBlock(unit, group) }, ::demoIdent)
+
+    /** KWP2000 identification like a PQ35 car: part number, then component name and version. */
+    private fun demoIdent(unit: Int): IntArray? = when (unit) {
+        0x01 -> ascii("03C906027BH ") + intArrayOf(0x00, 0x01) + ascii("1.4l R4/4V TFSI  0010")
+        0x02 -> ascii("02E300042C  ") + intArrayOf(0x00, 0x02) + ascii("GSG DSG       5404")
+        0x08 -> ascii("1K0907044CA ") + intArrayOf(0x00, 0x00) + ascii("Climatronic   0510")
+        else -> null
+    }
+
+    private fun ascii(text: String) = text.map { it.code }.toIntArray()
+
+    /** Central electrics answers UDS on 70E/778, as on later PQ35 cars. */
+    private fun demoUds(command: String): String? {
+        val ident = command in setOf("22F187", "22F189", "22F191", "22F197", "220600")
+        if (header != "70E") return if (ident) "NO DATA\r" else null
+        fun text(did: String, value: String) = "62$did" + value.map { "%02X".format(it.code) }.joinToString("") + "\r"
+        return when (command) {
+            "22F187" -> text("F187", "5K0937087AC")
+            "22F189" -> text("F189", "0507")
+            "22F191" -> text("F191", "5K0937087AC")
+            "22F197" -> text("F197", "BCM PQ35 H+3")
+            // Long coding, 30 bytes: one multi-frame message as the adapter prints it.
+            "220600" -> "021\r0:6206000E1A00\r1:070F00C4200806\r2:1F008040000000\r3:00010000002800\r4:00000000000000\r"
+            else -> if (command.startsWith("22") && command.length == 6) "7F2231\r" else null
+        }
+    }
 
     private fun demoBlock(unit: Int, group: Int): IntArray? {
         val t = (clock() - start) / 1000.0
@@ -48,6 +74,8 @@ class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : Elm
             if (command.startsWith("ATSH")) header = command.removePrefix("ATSH")
             return reply
         }
+        if (command.startsWith("ATFC") || command.startsWith("ATCRA")) return "OK\r"
+        demoUds(command)?.let { return it }
         return when (command) {
             // VW group (MQB) extras: engine oil and DSG temperature, each from its own control unit.
             "2211BE" -> if (header == "7E0") "6211BE" + hex2((min(96.0, 25 + t * 1.5) * 10).roundToInt() + 2731) + "\r" else "NO DATA\r"
