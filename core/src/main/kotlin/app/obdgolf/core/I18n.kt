@@ -130,6 +130,17 @@ enum class Str(val en: String) {
     BRAND_DATA_HINT("Read straight from the engine and gearbox control units. These are not part of the OBD standard, so only values your car answers sensibly are shown."),
     BRAND_OIL_TEMP("Engine oil temperature"),
     BRAND_GEARBOX_TEMP("Gearbox oil temperature"),
+    MB_TITLE("VW measuring blocks"),
+    MB_HINT("For older VW group cars (about 2004–2013). Pick a control unit and a group, then read. Live values pause for a moment while reading."),
+    MB_UNIT_ENGINE("Engine"),
+    MB_UNIT_GEARBOX("Gearbox"),
+    MB_UNIT_CLIMATE("Climate"),
+    MB_UNIT_INSTRUMENTS("Instruments"),
+    MB_GROUP("Group {0}"),
+    MB_READ("Read"),
+    MB_READING("Reading…"),
+    MB_NO_ANSWER("No answer. This control unit or group may not exist in your car."),
+    MB_VALUE("Value {0}"),
 
     // Connection screen
     CONNECTED_WITH("Connected · {0}"),

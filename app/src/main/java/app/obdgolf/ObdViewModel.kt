@@ -20,6 +20,8 @@ import app.obdgolf.core.DriveRecorder
 import app.obdgolf.core.ElmIo
 import app.obdgolf.core.ElmLog
 import app.obdgolf.core.LoggingElmIo
+import app.obdgolf.core.MeasuringBlock
+import app.obdgolf.core.VagUnit
 import app.obdgolf.core.FaultReport
 import app.obdgolf.core.Lang
 import app.obdgolf.core.Msg
@@ -51,6 +53,15 @@ sealed interface LinkState {
     data class Connecting(val name: String) : LinkState
     data class Connected(val name: String, val adapterVersion: String?) : LinkState
     data class Failed(val message: Msg) : LinkState
+}
+
+/** A VW measuring block read (older VW group cars, TP2.0). */
+sealed interface BlockState {
+    data object Idle : BlockState
+    data object Busy : BlockState
+    data class Ready(val block: MeasuringBlock) : BlockState
+    data object NoAnswer : BlockState
+    data class Error(val message: Msg) : BlockState
 }
 
 sealed interface FaultState {
@@ -164,6 +175,29 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun connectedSession(): ObdSession? = session.takeIf { _link.value is LinkState.Connected }.also {
         if (it == null) _faults.value = FaultState.Error(Msg.of(Str.FAULT_CONNECT_FIRST))
+    }
+
+    private val _measuring = MutableStateFlow(false)
+    /** True when the connected car can show VW measuring blocks. */
+    val measuring: StateFlow<Boolean> = _measuring.asStateFlow()
+
+    private val _block = MutableStateFlow<BlockState>(BlockState.Idle)
+    val block: StateFlow<BlockState> = _block.asStateFlow()
+
+    fun readBlock(unit: VagUnit, group: Int) {
+        val s = session.takeIf { _link.value is LinkState.Connected && _measuring.value } ?: return
+        if (_block.value is BlockState.Busy) return
+        viewModelScope.launch {
+            _block.value = BlockState.Busy
+            _block.value = try {
+                log.note("Measuring block: unit %02X group %03d".format(unit.address, group))
+                s.readMeasuringBlock(unit.address, group)?.let { BlockState.Ready(it) } ?: BlockState.NoAnswer
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                BlockState.Error(Msg.of(Str.READ_FAILED, e.toMsg()))
+            }
+        }
     }
 
     fun readFaults() {
@@ -309,6 +343,8 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         _link.value = LinkState.Disconnected
         _vehicle.value = null
         _faults.value = FaultState.Idle
+        _measuring.value = false
+        _block.value = BlockState.Idle
     }
 
     private fun startDemo() = start(DEMO) { DemoElmIo() }
@@ -327,6 +363,8 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     log.note("Connected: ${s.adapter.label}; supported PIDs: " +
                         s.supported.all.joinToString(" ") { "%02X".format(it) })
                     _vehicle.value = s.vehicle
+                    _measuring.value = s.supportsMeasuringBlocks
+                    if (s.brandValues.isNotEmpty()) log.note("Maker values: " + s.brandValues.joinToString(" "))
                     s.vehicle?.let { log.note("Vehicle: ${it.label}, VIN ${ElmLog.maskVin(it.vin)}") }
                     _link.value = LinkState.Connected(name, s.adapter.label)
                     attempt = 0
@@ -348,6 +386,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     return@launch
                 } catch (e: Exception) {
                     log.add(ElmLog.Kind.ERROR, e.message ?: e.javaClass.simpleName)
+                    _measuring.value = false
                     session?.close()
                     session = null
                     saveDrive(recorder?.finish())

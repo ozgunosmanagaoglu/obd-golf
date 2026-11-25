@@ -194,5 +194,18 @@ class ObdSession(
     suspend fun clearFaults(): Boolean =
         ElmParser.clean(ask("04", timeoutMs = 5_000)).any { it.startsWith("44") }
 
+    /** Older VW group cars (PQ35/PQ46) can show measuring blocks over VW TP2.0; needs CAN 11 bit 500k. */
+    val supportsMeasuringBlocks: Boolean
+        get() = vehicle?.group == MakerGroup.VAG && adapter.protocol == ObdProtocol.CAN_11_500
+
+    /**
+     * Reads one measuring block over VW TP2.0. Holds the adapter for the whole read (about a second),
+     * so live values pause meanwhile, and leaves the adapter in normal OBD mode. Null when the unit or group does not answer.
+     */
+    suspend fun readMeasuringBlock(unit: Int, group: Int): MeasuringBlock? {
+        if (!supportsMeasuringBlocks) return null
+        return lock.withLock { Tp20Channel(io).readBlock(unit, group) }
+    }
+
     fun close() = io.close()
 }
