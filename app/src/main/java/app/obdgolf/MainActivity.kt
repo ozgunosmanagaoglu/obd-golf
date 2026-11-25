@@ -124,6 +124,7 @@ class MainActivity : ComponentActivity() {
                     onConnect = ::connectWithPermission,
                     onGrantPermission = ::requestBluetoothPermission,
                     onScanBle = ::scanBleWithPermission,
+                    onShareLog = ::shareLog,
                 )
             }
         }
@@ -164,6 +165,14 @@ class MainActivity : ComponentActivity() {
         askBluetooth.launch(missing.toTypedArray())
     }
 
+    private fun shareLog() {
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("text/plain")
+            .putExtra(Intent.EXTRA_SUBJECT, "Revora adaptör günlüğü")
+            .putExtra(Intent.EXTRA_TEXT, vm.exportLog())
+        startActivity(Intent.createChooser(send, "Günlüğü paylaş"))
+    }
+
     private fun openAppSettings() {
         startActivity(
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))
@@ -180,12 +189,12 @@ private enum class Tab(val label: String) {
 private val homeTab = Tab.Dashboard
 
 @Composable
-private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit, onScanBle: () -> Unit) {
+private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit, onScanBle: () -> Unit, onShareLog: () -> Unit) {
     val link by vm.link.collectAsState()
     var splash by rememberSaveable { mutableStateOf(true) }
 
     Box(Modifier.fillMaxSize().background(C.Bg)) {
-        MainContent(vm, onConnect, onGrantPermission, onScanBle)
+        MainContent(vm, onConnect, onGrantPermission, onScanBle, onShareLog)
         // Loading screen on top while Bluetooth and auto-connect start underneath.
         AnimatedVisibility(visible = splash, exit = fadeOut(tween(350))) {
             val status = when (val l = link) {
@@ -199,7 +208,7 @@ private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPerm
 }
 
 @Composable
-private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit, onScanBle: () -> Unit) {
+private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit, onScanBle: () -> Unit, onShareLog: () -> Unit) {
     val data by vm.data.collectAsState()
     val link by vm.link.collectAsState()
     val devices by vm.devices.collectAsState()
@@ -249,6 +258,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                         bleStatus = bleStatus,
                         onScanBle = onScanBle,
                         onConnectBle = { vm.connectBle(it); tab = homeTab },
+                        onShareLog = onShareLog,
                         onDisconnect = vm::disconnect,
                         onRefresh = vm::refreshDevices,
                         onAutoConnect = vm::setAutoConnect,

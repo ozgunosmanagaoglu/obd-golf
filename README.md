@@ -21,6 +21,8 @@ OBD-II araçlar için Android gösterge uygulaması. ELM327 uyumlu adaptörlerle
 
 **Geçmiş** sekmesi her sürüşü kendiliğinden kaydeder: süre, mesafe, ortalama ve en yüksek hız, en yüksek devir, rölantide geçen süre, en yüksek su sıcaklığı, en düşük akü voltajı ve hız, devir ve sıcaklık grafikleri. Motor 30 saniye kapalı kalınca sürüş biter, 30 saniyeden kısa kayıtlar tutulmaz. Kayıtlar sadece telefonda durur.
 
+**Bağlantı** sekmesinin üstünde adaptör türü seçilir (Bluetooth / BLE / Wi-Fi). Bir adaptör ya da araç çalışmazsa en alttaki **Günlüğü paylaş** düğmesi, adaptöre giden komutları ve cevapları metin olarak paylaşır.
+
 Telefon yatay çevrilince ana gösterge araç ekranı düzenine geçer.
 
 ## Okunan veriler

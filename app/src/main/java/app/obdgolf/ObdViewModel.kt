@@ -18,6 +18,8 @@ import app.obdgolf.core.DemoElmIo
 import app.obdgolf.core.Drive
 import app.obdgolf.core.DriveRecorder
 import app.obdgolf.core.ElmIo
+import app.obdgolf.core.ElmLog
+import app.obdgolf.core.LoggingElmIo
 import app.obdgolf.core.FaultReport
 import app.obdgolf.core.ObdSession
 import app.obdgolf.core.WifiAddress
@@ -48,6 +50,9 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
     private val bt = BluetoothConnector(app)
     private val wifi = WifiConnector(app)
     private val ble = BleConnector(app)
+
+    /** Adapter traffic, shared from the Connect screen when something does not work. */
+    val log = ElmLog()
     private val prefs = app.getSharedPreferences("obd", Context.MODE_PRIVATE)
 
     private val _data = MutableStateFlow(CarData())
@@ -221,6 +226,17 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         start(device.name) { ble.connect(device.address) }
     }
 
+    /** Plain-text report for support: app and phone info, current link, then the adapter log. */
+    fun exportLog(): String {
+        val app = getApplication<Application>()
+        val version = runCatching { app.packageManager.getPackageInfo(app.packageName, 0).versionName }.getOrNull()
+        return log.export(listOf(
+            "Revora $version",
+            "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}), ${Build.MANUFACTURER} ${Build.MODEL}",
+            "Bağlantı: ${_link.value}",
+        ))
+    }
+
     fun setDemo(on: Boolean) {
         _demo.value = on
         prefs.edit().putBoolean("demo", on).apply()
@@ -254,8 +270,11 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
             while (true) {
                 _link.value = LinkState.Connecting(name)
                 try {
-                    val s = ObdSession(open()).also { session = it }
+                    log.note("Bağlanıyor: $name")
+                    val s = ObdSession(LoggingElmIo(open(), log)).also { session = it }
                     s.initialize()
+                    log.note("Bağlandı: ${s.adapter.label}; desteklenen PID'ler: " +
+                        s.supported.all.joinToString(" ") { "%02X".format(it) })
                     _link.value = LinkState.Connected(name, s.adapter.label)
                     attempt = 0
                     s.poll().collect {
@@ -275,6 +294,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     job = null
                     return@launch
                 } catch (e: Exception) {
+                    log.add(ElmLog.Kind.ERROR, e.message ?: e.javaClass.simpleName)
                     session?.close()
                     session = null
                     saveDrive(recorder?.finish())
