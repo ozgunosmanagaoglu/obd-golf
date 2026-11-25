@@ -151,8 +151,6 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val theme by vm.theme.collectAsState()
-    val startOnBoot by vm.startOnBoot.collectAsState()
-    val overlayAllowed by vm.overlayAllowed.collectAsState()
             ObdTheme(theme) {
                 App(
                     vm,
@@ -269,6 +267,8 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val batteryUnrestricted by vm.batteryUnrestricted.collectAsState()
     val dashboard by vm.dashboard.collectAsState()
     val history by vm.history.collectAsState()
+    val startOnBoot by vm.startOnBoot.collectAsState()
+    val overlayAllowed by vm.overlayAllowed.collectAsState()
     val theme by vm.theme.collectAsState()
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
