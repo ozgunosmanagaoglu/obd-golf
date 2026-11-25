@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ElmLogTest {
@@ -37,6 +38,41 @@ class ElmLogTest {
         val text = log.export(listOf("Revora 0.1.30", "Android 14"))
         assertTrue(text.startsWith("Revora 0.1.30\nAndroid 14\n\n"))
         assertTrue(text.trimEnd().endsWith("> ATZ"))
+    }
+}
+
+class ElmLogSetupTest {
+    @Test fun setupSurvivesALongDrive() {
+        var t = 0L
+        val log = ElmLog(capacity = 5, clock = { t++ })
+        log.beginAttempt()
+        log.add(ElmLog.Kind.SENT, "ATZ")
+        log.add(ElmLog.Kind.RECEIVED, "ELM327 v2.3")
+        log.connected()
+        repeat(10) { log.add(ElmLog.Kind.SENT, "010C") }
+        val text = log.export()
+        assertTrue("--- Last successful connection ---" in text)
+        assertTrue("> ATZ" in text)
+        assertEquals(5, text.lines().count { it.endsWith("> 010C") })
+    }
+
+    @Test fun failedAttemptKeepsTheGoodSetup() {
+        val log = ElmLog(capacity = 3)
+        log.beginAttempt()
+        log.add(ElmLog.Kind.SENT, "GOOD")
+        log.connected()
+        log.beginAttempt()
+        log.add(ElmLog.Kind.SENT, "BAD")
+        repeat(5) { log.add(ElmLog.Kind.SENT, "x") }
+        assertEquals(listOf("GOOD"), log.setupSnapshot().map { it.text })
+    }
+
+    @Test fun noSectionWhileSetupIsStillInTheRing() {
+        val log = ElmLog()
+        log.beginAttempt()
+        log.add(ElmLog.Kind.SENT, "ATZ")
+        log.connected()
+        assertFalse("---" in log.export())
     }
 }
 

@@ -33,6 +33,17 @@ class ObdSession(
     var vehicle: VehicleInfo? = null
         private set
 
+    /**
+     * Where live requests go. "7DF" asks every control unit (on many cars the engine and the gearbox both
+     * answer, with slightly different values). On 11-bit CAN we switch to the engine alone ("7E0") when it answers.
+     */
+    var homeHeader: String = "7DF"
+        private set
+
+    /** The adapter returns as soon as one answer is in ("010C1"), instead of waiting for more units. */
+    var singleReply: Boolean = false
+        private set
+
     /** Maker-specific values this car answered while connecting (see [BrandProfiles]). */
     var brandValues: List<BrandValue> = emptyList()
         private set
@@ -42,8 +53,8 @@ class ObdSession(
     private suspend fun ask(command: String, timeoutMs: Long = 2_000) = lock.withLock { io.exchange(command, timeoutMs) }
 
     /**
-     * Sends [command] to one control unit ([header], e.g. 7E0) and switches back to the OBD broadcast
-     * address 7DF, all under one lock so fault reading never goes to the wrong unit.
+     * Sends [command] to one control unit ([header], e.g. 7E0) and switches back to [homeHeader],
+     * all under one lock so fault reading never goes to the wrong unit.
      */
     private suspend fun askUnit(header: String, command: String, timeoutMs: Long = 1_000): String? = lock.withLock {
         try {
@@ -52,7 +63,7 @@ class ObdSession(
         } catch (_: ElmTimeoutException) {
             null
         } finally {
-            runCatching { io.exchange("ATSH7DF", 1_000) }
+            runCatching { io.exchange("ATSH$homeHeader", 1_000) }
         }
     }
 
@@ -85,7 +96,30 @@ class ObdSession(
         val protocol = runCatching { ObdProtocol.fromDpn(ask("ATDPN")) }.getOrNull()
         adapter = AdapterInfo(elmVersion = elm, stnId = stn, protocol = protocol)
         vehicle = runCatching { Vin.parse(ask("0902", timeoutMs = 3_000)) }.getOrNull()?.let { Vin.decode(it) }
+        if (protocol?.isCan11 == true) {
+            try {
+                useEngineOnly()
+            } catch (_: ElmTimeoutException) {
+                homeHeader = "7DF"
+                singleReply = false
+                runCatching { ask("ATSH7DF") }
+            }
+        }
         brandValues = probeBrand()
+    }
+
+    /**
+     * Talks to the engine alone when it answers on 7E0: one reply per request, no mixing with the gearbox,
+     * and with a reply count ("01001") the adapter does not wait for other units, which makes live values faster.
+     */
+    private suspend fun useEngineOnly() {
+        ask("ATSH7E0")
+        if (SupportedPids.parseBitmap(0x00, runCatching { ask("0100") }.getOrDefault("")) == null) {
+            ask("ATSH7DF")
+            return
+        }
+        homeHeader = "7E0"
+        singleReply = SupportedPids.parseBitmap(0x00, runCatching { ask("01001") }.getOrDefault("")) != null
     }
 
     /** Tries each value of the car's maker profile once; keeps the ones that answer sensibly. */
@@ -134,7 +168,7 @@ class ObdSession(
         // One PID that times out or gets "NO DATA" is skipped; many in a row means the car is gone.
         suspend fun read(pid: Pid, counts: Boolean = true): Double? {
             val value = try {
-                ElmParser.parsePid(pid, ask(pid.command))
+                ElmParser.parsePid(pid, ask(if (singleReply) pid.command + "1" else pid.command))
             } catch (_: ElmTimeoutException) {
                 null
             }
@@ -171,7 +205,20 @@ class ObdSession(
     }
 
     /** Reads engine lamp, stored / pending / permanent codes and freeze frame 0. */
-    suspend fun readFaults(nowMs: Long = System.currentTimeMillis()): FaultReport {
+    suspend fun readFaults(nowMs: Long = System.currentTimeMillis()): FaultReport = toAllUnits { readFaultsHere(nowMs) }
+
+    /** Fault codes live in every control unit, so these requests go to all of them (7DF). */
+    private suspend fun <T> toAllUnits(block: suspend () -> T): T {
+        if (homeHeader == "7DF") return block()
+        ask("ATSH7DF")
+        try {
+            return block()
+        } finally {
+            runCatching { ask("ATSH$homeHeader") }
+        }
+    }
+
+    private suspend fun readFaultsHere(nowMs: Long): FaultReport {
         val mil = DtcParser.parseMil(ask("0101"))
         val codes = mutableListOf<Dtc>()
         for ((mode, kind) in listOf("03" to DtcKind.STORED, "07" to DtcKind.PENDING, "0A" to DtcKind.PERMANENT)) {
@@ -191,8 +238,9 @@ class ObdSession(
     }
 
     /** Mode 04: clears codes and freeze frame and resets the readiness tests. True if the car confirmed. */
-    suspend fun clearFaults(): Boolean =
+    suspend fun clearFaults(): Boolean = toAllUnits {
         ElmParser.clean(ask("04", timeoutMs = 5_000)).any { it.startsWith("44") }
+    }
 
     /** Older VW group cars (PQ35/PQ46) can show measuring blocks over VW TP2.0; needs CAN 11 bit 500k. */
     val supportsMeasuringBlocks: Boolean
@@ -204,7 +252,7 @@ class ObdSession(
      */
     suspend fun readMeasuringBlock(unit: Int, group: Int): MeasuringBlock? {
         if (!supportsMeasuringBlocks) return null
-        return lock.withLock { Tp20Channel(io).readBlock(unit, group) }
+        return lock.withLock { Tp20Channel(io, homeHeader).readBlock(unit, group) }
     }
 
     fun close() = io.close()

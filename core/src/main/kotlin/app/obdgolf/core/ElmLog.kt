@@ -17,10 +17,33 @@ class ElmLog(private val capacity: Int = 400, private val clock: () -> Long = Sy
 
     private val entries = ArrayDeque<Entry>()
 
+    // The setup of the last connection that worked is kept apart: after a long drive the ring above
+    // only holds the last minute of polling, but setup (adapter, protocol, VIN, probes) is what we need most.
+    private val attempt = mutableListOf<Entry>()
+    private var setup: List<Entry> = emptyList()
+    private var inSetup = false
+
     @Synchronized
     fun add(kind: Kind, text: String) {
-        entries.addLast(Entry(clock(), kind, text))
+        val e = Entry(clock(), kind, text)
+        entries.addLast(e)
         while (entries.size > capacity) entries.removeFirst()
+        if (inSetup && attempt.size < SETUP_CAPACITY) attempt += e
+    }
+
+    /** A new connection attempt starts: its lines are collected until [connected]. */
+    @Synchronized
+    fun beginAttempt() {
+        attempt.clear()
+        inSetup = true
+    }
+
+    /** The attempt worked: keep its setup lines for the shared log. */
+    @Synchronized
+    fun connected() {
+        setup = attempt.toList()
+        attempt.clear()
+        inSetup = false
     }
 
     fun note(text: String) = add(Kind.NOTE, text)
@@ -29,7 +52,15 @@ class ElmLog(private val capacity: Int = 400, private val clock: () -> Long = Sy
     fun snapshot(): List<Entry> = entries.toList()
 
     @Synchronized
-    fun clear() = entries.clear()
+    fun setupSnapshot(): List<Entry> = setup
+
+    @Synchronized
+    fun clear() {
+        entries.clear()
+        attempt.clear()
+        setup = emptyList()
+        inSetup = false
+    }
 
     /** Plain text for sharing: [header] lines first, then one line per entry. */
     fun export(header: List<String> = emptyList()): String {
@@ -37,11 +68,21 @@ class ElmLog(private val capacity: Int = 400, private val clock: () -> Long = Sy
         return buildString {
             header.forEach { appendLine(it) }
             if (header.isNotEmpty()) appendLine()
-            snapshot().forEach { appendLine("${fmt.format(Date(it.atMs))} ${it.kind.mark} ${it.text}") }
+            val recent = snapshot()
+            // Setup lines still in the ring are printed there; only the ones it already dropped go first.
+            val dropped = setupSnapshot().filter { s -> recent.none { it === s } }
+            if (dropped.isNotEmpty()) {
+                appendLine("--- Last successful connection ---")
+                dropped.forEach { appendLine("${fmt.format(Date(it.atMs))} ${it.kind.mark} ${it.text}") }
+                appendLine("--- Most recent ---")
+            }
+            recent.forEach { appendLine("${fmt.format(Date(it.atMs))} ${it.kind.mark} ${it.text}") }
         }
     }
 
     companion object {
+        const val SETUP_CAPACITY = 200
+
         /** "WVWZZZ1KZBP123456" -> "WVWZZZ1KZB*******": maker and model year stay, the serial goes. */
         fun maskVin(vin: String): String = vin.take(10) + "*".repeat((vin.length - 10).coerceAtLeast(0))
 

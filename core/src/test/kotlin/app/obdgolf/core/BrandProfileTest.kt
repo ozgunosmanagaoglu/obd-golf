@@ -60,7 +60,7 @@ class BrandProfileTest {
         val io = UnitElm(mapOf("7E0:2211BE" to "6211BE0E2F\r", "7E1:222104" to "7F2211\r"))
         val s = ObdSession(io).also { it.initialize() }
         assertEquals(listOf(oil), s.brandValues)
-        assertEquals("7DF", io.header) // back on the broadcast address
+        assertEquals("7E0", io.header) // back on the engine
     }
 
     @Test fun pollReadsBrandValues() = runBlocking {
@@ -69,7 +69,7 @@ class BrandProfileTest {
         val d = s.poll().first()
         assertEquals(90.0, d.brand[oil])
         assertEquals(65.0, d.brand[gearbox])
-        assertEquals("7DF", io.header)
+        assertEquals("7E0", io.header)
     }
 
     @Test fun faultsGoToAllUnitsAfterBrandReads() = runBlocking {
@@ -77,14 +77,15 @@ class BrandProfileTest {
         val s = ObdSession(io).also { it.initialize() }
         s.poll().first()
         assertTrue(s.readFaults().codes.isEmpty())
-        assertEquals("7DF", io.header)
+        assertTrue("ATSH7DF" in io.sent.takeLast(8)) // codes were asked from every unit
+        assertEquals("7E0", io.header)
     }
 
     @Test fun noProbeWithoutVin() = runBlocking {
         val io = UnitElm(mapOf("7E0:2211BE" to "6211BE0E2F\r"), vin = false)
         val s = ObdSession(io).also { it.initialize() }
         assertTrue(s.brandValues.isEmpty())
-        assertTrue(io.sent.none { it.startsWith("ATSH") })
+        assertTrue("2211BE" !in io.sent)
     }
 
     @Test fun demoCarAnswersBothValues() = runBlocking {
