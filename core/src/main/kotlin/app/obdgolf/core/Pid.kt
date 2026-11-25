@@ -22,6 +22,8 @@ object ElmParser {
         .replace("SEARCHING...", "")
         .split('\r', '\n')
         .map { it.replace(" ", "").trim().uppercase() }
+        // "BUS INIT: ...OK" is printed once while a K-line (ISO 9141 / KWP) car wakes up.
+        .map { it.removePrefix("BUSINIT:...OK").removePrefix("BUSINIT:OK") }
         .filter { it.isNotEmpty() }
 
     /**

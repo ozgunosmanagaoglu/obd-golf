@@ -194,7 +194,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val s = ObdSession(open()).also { session = it }
                     s.initialize()
-                    _link.value = LinkState.Connected(name, s.adapterVersion)
+                    _link.value = LinkState.Connected(name, s.adapter.label)
                     attempt = 0
                     s.poll().collect {
                         _data.value = it
