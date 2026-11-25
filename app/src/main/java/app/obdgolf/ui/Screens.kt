@@ -44,6 +44,7 @@ import app.obdgolf.LinkState
 import app.obdgolf.ble.BleDevice
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
+import app.obdgolf.core.VehicleInfo
 import app.obdgolf.core.WifiAddress
 
 @Composable
@@ -99,7 +100,7 @@ fun DashboardScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
 }
 
 @Composable
-fun DetailsScreen(d: CarData) {
+fun DetailsScreen(d: CarData, vehicle: VehicleInfo?, adapterLabel: String?) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -107,6 +108,20 @@ fun DetailsScreen(d: CarData) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Tüm veriler", color = C.Text, fontWeight = FontWeight.Bold, fontSize = 22.sp)
             Text(d.refreshHz?.let { "Canlı · ${it.fmt(1)} Hz" } ?: "Bekleniyor", color = C.Muted, fontSize = 12.sp)
+        }
+        if (vehicle != null || adapterLabel != null) {
+            SectionLabel("Araç")
+            Card {
+                val rows = listOfNotNull(
+                    vehicle?.let { "Araç" to it.label },
+                    vehicle?.let { "VIN" to it.vin },
+                    adapterLabel?.let { "Adaptör" to it },
+                )
+                rows.forEachIndexed { i, (l, v) ->
+                    if (i > 0) HorizontalDivider(color = C.Divider)
+                    RowItem(l, v)
+                }
+            }
         }
         SectionLabel("Standart OBD")
         Card {
@@ -123,6 +138,18 @@ fun DetailsScreen(d: CarData) {
                 if (i > 0) HorizontalDivider(color = C.Divider)
                 RowItem(l, if (v.startsWith("—")) "—" else v)
             }
+        }
+        // Everything else this car reports, in the order of the OBD standard.
+        val extras = d.extra.entries.sortedBy { it.key.number }
+        if (extras.isNotEmpty()) {
+            SectionLabel("Arabanın desteklediği diğer veriler")
+            Card {
+                extras.forEachIndexed { i, (pid, value) ->
+                    if (i > 0) HorizontalDivider(color = C.Divider)
+                    RowItem(pid.label, "${value.fmt(pid.decimals)} ${pid.unit}")
+                }
+            }
+            Text("Bu değerler sırayla okunur, birkaç saniyede bir yenilenir.", color = C.Muted, fontSize = 12.sp)
         }
     }
 }

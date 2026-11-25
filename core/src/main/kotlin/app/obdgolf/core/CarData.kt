@@ -11,6 +11,8 @@ data class CarData(
     val throttlePct: Double? = null,
     val batteryV: Double? = null,
     val refreshHz: Double? = null,
+    /** Other standard PIDs the car supports, read in turns (Veriler screen). */
+    val extra: Map<Pid, Double> = emptyMap(),
 ) {
     fun with(pid: Pid, value: Double?): CarData = when (pid) {
         Pid.RPM -> copy(rpm = value)
@@ -20,5 +22,6 @@ data class CarData(
         Pid.AMBIENT_TEMP -> copy(ambientC = value)
         Pid.ENGINE_LOAD -> copy(loadPct = value)
         Pid.THROTTLE -> copy(throttlePct = value)
+        else -> copy(extra = if (value == null) extra - pid else extra + (pid to value))
     }
 }
