@@ -1,10 +1,6 @@
 package app.obdgolf.core
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
 
 /** Sends one command to an ELM327 and returns its raw reply (everything before the '>' prompt). */
 interface ElmIo {
@@ -12,36 +8,40 @@ interface ElmIo {
     fun close()
 }
 
-/** ELM327 over any byte stream pair, e.g. a Bluetooth RFCOMM socket. */
-class StreamElmIo(
-    private val input: InputStream,
-    private val output: OutputStream,
-    private val onClose: () -> Unit = {},
+/** The adapter did not finish its reply (no '>' prompt) in time. */
+class ElmTimeoutException(val command: String) : IOException("Timeout waiting for reply to $command")
+
+/**
+ * ELM327 command/reply framing over any [Transport]: write "command\r", collect bytes until '>'.
+ * Works the same whether the bytes come from a socket stream or from BLE notifications
+ * split into 20-byte pieces.
+ */
+class TransportElmIo(
+    private val transport: Transport,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) : ElmIo {
 
-    override suspend fun exchange(command: String, timeoutMs: Long): String = withContext(Dispatchers.IO) {
+    override suspend fun exchange(command: String, timeoutMs: Long): String {
         // Drop anything left over from an earlier, timed-out command.
-        while (input.available() > 0) input.read()
+        while (transport.read(0).isNotEmpty()) Unit
 
-        output.write("$command\r".toByteArray(Charsets.US_ASCII))
-        output.flush()
+        transport.write("$command\r".toByteArray(Charsets.US_ASCII))
 
         val sb = StringBuilder()
-        val deadline = System.currentTimeMillis() + timeoutMs
+        val deadline = clock() + timeoutMs
         while (true) {
-            if (input.available() > 0) {
-                val b = input.read()
-                if (b < 0) throw IOException("Adapter closed the connection")
-                val c = b.toChar()
-                if (c == '>') break
-                sb.append(c)
-            } else {
-                if (System.currentTimeMillis() > deadline) throw IOException("Timeout waiting for reply to $command")
-                Thread.sleep(5)
+            val left = deadline - clock()
+            if (left <= 0) throw ElmTimeoutException(command)
+            for (b in transport.read(left)) {
+                val c = (b.toInt() and 0xFF).toChar()
+                when (c) {
+                    '>' -> return sb.toString()
+                    '\u0000' -> Unit // some clones pad replies with NUL bytes
+                    else -> sb.append(c)
+                }
             }
         }
-        sb.toString()
     }
 
-    override fun close() = onClose()
+    override fun close() = transport.close()
 }

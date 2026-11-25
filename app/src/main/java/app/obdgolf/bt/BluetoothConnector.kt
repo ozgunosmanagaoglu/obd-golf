@@ -5,7 +5,8 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import app.obdgolf.core.ElmIo
-import app.obdgolf.core.StreamElmIo
+import app.obdgolf.core.StreamTransport
+import app.obdgolf.core.TransportElmIo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -73,7 +74,7 @@ class BluetoothConnector(context: Context) {
             if (errors.all { it.cause is SecurityException }) throw BluetoothPermissionException(details)
             throw IOException("Adaptöre bağlanılamadı (kontak açık mı?)\n$details")
         }
-        StreamElmIo(sock.inputStream, sock.outputStream) { runCatching { sock.close() } }
+        TransportElmIo(StreamTransport(sock.inputStream, sock.outputStream) { runCatching { sock.close() } })
     }
 
     companion object {
