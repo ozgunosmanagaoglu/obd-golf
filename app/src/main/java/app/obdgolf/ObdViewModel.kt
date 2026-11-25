@@ -1,6 +1,10 @@
 package app.obdgolf
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -204,7 +208,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     session = null
                     saveDrive(recorder?.finish())
                     recorder = null
-                    _permissionMissing.value = true
+                    _permissionMissing.value = !hasBluetoothPermissions()
                     _link.value = LinkState.Failed(e.message ?: "Bluetooth izni yok")
                     job = null
                     return@launch
@@ -220,6 +224,12 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    private fun hasBluetoothPermissions(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+            listOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN).all {
+                ContextCompat.checkSelfPermission(getApplication(), it) == PackageManager.PERMISSION_GRANTED
+            }
 
     override fun onCleared() = disconnect()
 }
