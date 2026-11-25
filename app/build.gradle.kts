@@ -9,30 +9,12 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "app.obdgolf"
+        // Fixed for good once the app is on Google Play.
+        applicationId = "app.revora"
         minSdk = 26
         targetSdk = 35
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
         versionName = "0.1.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
-    }
-
-    // Two editions from the same code:
-    //  - personal: the owner's Golf build with the 3D garage (never uploaded to a store)
-    //  - store:    "Revora", the public build for Google Play, without car-maker branding
-    // Code and assets only one edition needs live in src/personal or src/store.
-    flavorDimensions += "edition"
-    productFlavors {
-        create("personal") {
-            dimension = "edition"
-            applicationId = "app.obdgolf" // unchanged, so new APKs install over the old app
-            resValue("string", "app_name", "Golf OBD")
-        }
-        create("store") {
-            dimension = "edition"
-            // Fixed for good once the app is on Google Play: pick it before the first upload.
-            applicationId = "app.revora"
-            resValue("string", "app_name", "Revora")
-        }
     }
 
     signingConfigs {
@@ -79,6 +61,4 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-    // Only the 3D garage (personal edition) uses a WebView.
-    "personalImplementation"("androidx.webkit:webkit:1.12.1")
 }

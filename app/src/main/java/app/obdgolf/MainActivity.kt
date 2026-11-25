@@ -143,14 +143,11 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Tab(val label: String) {
-    Garage("Garaj"), Dashboard("Gösterge"), Details("Veriler"), Faults("Arıza"), History("Geçmiş"), Connect("Bağlantı")
+    Dashboard("Gösterge"), Details("Veriler"), Faults("Arıza"), History("Geçmiş"), Connect("Bağlantı")
 }
 
-/** Tabs this build shows: the garage exists only in the personal edition. */
-private val visibleTabs = Tab.entries.filter { it != Tab.Garage || Edition.HAS_GARAGE }
-
 /** Where the app lands after connecting. */
-private val homeTab = visibleTabs.first()
+private val homeTab = Tab.Dashboard
 
 @Composable
 private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit) {
@@ -192,7 +189,6 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
                 when (tab) {
-                    Tab.Garage -> Edition.Garage(data, link, demo)
                     Tab.Dashboard -> DashboardScreen(data, link) { tab = Tab.Connect }
                     Tab.Details -> DetailsScreen(data)
                     Tab.Faults -> FaultScreen(
@@ -224,7 +220,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                     .clip(RoundedCornerShape(22.dp)).background(C.Card).padding(5.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                visibleTabs.forEach { t ->
+                Tab.entries.forEach { t ->
                     val selected = t == tab
                     TextButton(
                         onClick = { tab = t },

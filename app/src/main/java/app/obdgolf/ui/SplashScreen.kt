@@ -1,6 +1,5 @@
 package app.obdgolf.ui
 
-import app.obdgolf.Edition
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -71,7 +70,7 @@ fun SplashScreen(status: String, onDone: () -> Unit) {
                     }
                 }
                 Box(Modifier.scale(0.6f + 0.4f * logo.value).alpha(logo.value)) {
-                    Box(Modifier.scale(1.6f)) { Badge(Edition.BADGE) }
+                    Box(Modifier.scale(1.6f)) { Badge(Brand.BADGE) }
                 }
             }
             Column(
@@ -79,8 +78,8 @@ fun SplashScreen(status: String, onDone: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(Edition.TITLE, color = C.Text, fontFamily = Sora, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, letterSpacing = 3.sp)
-                Text(Edition.SUBTITLE, color = C.Muted, fontFamily = Sora, fontWeight = FontWeight.Light, fontSize = 14.sp, letterSpacing = 1.sp)
+                Text(Brand.TITLE, color = C.Text, fontFamily = Sora, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, letterSpacing = 3.sp)
+                Text(Brand.SUBTITLE, color = C.Muted, fontFamily = Sora, fontWeight = FontWeight.Light, fontSize = 14.sp, letterSpacing = 1.sp)
                 Spacer(Modifier.height(28.dp))
                 Text(status, color = C.Dim, fontSize = 13.sp)
             }
