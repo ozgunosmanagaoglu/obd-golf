@@ -218,6 +218,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val faults by vm.faults.collectAsState()
     val permissionMissing by vm.permissionMissing.collectAsState()
     val wifiAddress by vm.wifiAddress.collectAsState()
+    val vehicle by vm.vehicle.collectAsState()
     val bleDevices by vm.bleDevices.collectAsState()
     val bleScanning by vm.bleScanning.collectAsState()
     val bleStatus by vm.bleStatus.collectAsState()
@@ -233,7 +234,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
             Box(Modifier.weight(1f)) {
                 when (tab) {
                     Tab.Dashboard -> DashboardScreen(data, link) { tab = Tab.Connect }
-                    Tab.Details -> DetailsScreen(data)
+                    Tab.Details -> DetailsScreen(data, vehicle, (link as? LinkState.Connected)?.adapterVersion)
                     Tab.Faults -> FaultScreen(
                         state = faults,
                         link = link,

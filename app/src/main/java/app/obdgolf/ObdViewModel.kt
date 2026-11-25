@@ -22,6 +22,7 @@ import app.obdgolf.core.ElmLog
 import app.obdgolf.core.LoggingElmIo
 import app.obdgolf.core.FaultReport
 import app.obdgolf.core.ObdSession
+import app.obdgolf.core.VehicleInfo
 import app.obdgolf.core.WifiAddress
 import app.obdgolf.wifi.WifiConnector
 import kotlinx.coroutines.CancellationException
@@ -60,6 +61,10 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _link = MutableStateFlow<LinkState>(LinkState.Disconnected)
     val link: StateFlow<LinkState> = _link.asStateFlow()
+
+    /** The connected car as read from its VIN; null when not connected or the car has no VIN. */
+    private val _vehicle = MutableStateFlow<VehicleInfo?>(null)
+    val vehicle: StateFlow<VehicleInfo?> = _vehicle.asStateFlow()
 
     private val _devices = MutableStateFlow<List<PairedDevice>>(emptyList())
     val devices: StateFlow<List<PairedDevice>> = _devices.asStateFlow()
@@ -257,6 +262,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         session?.close()
         session = null
         _link.value = LinkState.Disconnected
+        _vehicle.value = null
         _faults.value = FaultState.Idle
     }
 
@@ -275,6 +281,8 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     s.initialize()
                     log.note("Bağlandı: ${s.adapter.label}; desteklenen PID'ler: " +
                         s.supported.all.joinToString(" ") { "%02X".format(it) })
+                    _vehicle.value = s.vehicle
+                    s.vehicle?.let { log.note("Araç: ${it.label}, VIN ${ElmLog.maskVin(it.vin)}") }
                     _link.value = LinkState.Connected(name, s.adapter.label)
                     attempt = 0
                     s.poll().collect {

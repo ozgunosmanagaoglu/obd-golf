@@ -7,7 +7,7 @@ import java.util.Locale
 /**
  * The last few hundred commands and replies exchanged with the adapter.
  * Shared from the Connect screen when an adapter or car does not work, so we can see what it said.
- * It holds no personal data: only ELM327 traffic (which may include the VIN once we read it).
+ * It holds no personal data: only ELM327 traffic, with the VIN reply hidden.
  */
 class ElmLog(private val capacity: Int = 400, private val clock: () -> Long = System::currentTimeMillis) {
 
@@ -42,6 +42,9 @@ class ElmLog(private val capacity: Int = 400, private val clock: () -> Long = Sy
     }
 
     companion object {
+        /** "WVWZZZ1KZBP123456" -> "WVWZZZ1KZB*******": maker and model year stay, the serial goes. */
+        fun maskVin(vin: String): String = vin.take(10) + "*".repeat((vin.length - 10).coerceAtLeast(0))
+
         /** Makes control characters visible: "41 0C\r\r" becomes "41 0C\r\r" with literal backslashes. */
         fun visible(raw: String): String = raw.replace("\r", "\\r").replace("\n", "\\n").replace("\u0000", "\\0")
     }
@@ -52,7 +55,10 @@ class LoggingElmIo(private val io: ElmIo, private val log: ElmLog) : ElmIo {
     override suspend fun exchange(command: String, timeoutMs: Long): String {
         log.add(ElmLog.Kind.SENT, command)
         return try {
-            io.exchange(command, timeoutMs).also { log.add(ElmLog.Kind.RECEIVED, ElmLog.visible(it)) }
+            io.exchange(command, timeoutMs).also {
+                // The VIN identifies one car, so a shared log never carries it.
+                log.add(ElmLog.Kind.RECEIVED, if (command == "0902") "(VIN gizlendi)" else ElmLog.visible(it))
+            }
         } catch (e: Exception) {
             log.add(ElmLog.Kind.ERROR, e.message ?: e.javaClass.simpleName)
             throw e

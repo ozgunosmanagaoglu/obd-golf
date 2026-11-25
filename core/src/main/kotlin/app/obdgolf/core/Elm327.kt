@@ -82,6 +82,12 @@ class SupportedPids(private val known: Map<Int, Set<Int>> = emptyMap()) {
 
     fun isSupported(pid: Pid): Boolean = isSupported(pid.code.toInt(16))
 
+    /** True only when the car's bitmap explicitly lists [pid] (used for optional extras). */
+    fun isKnownSupported(pid: Pid): Boolean {
+        val base = ((pid.number - 1) / 0x20) * 0x20
+        return known[base]?.contains(pid.number) == true
+    }
+
     /** True when the bitmap at [base] says the next range (base + 0x20) exists. */
     fun hasNextRange(base: Int): Boolean = known[base]?.contains(base + 0x20) == true
 

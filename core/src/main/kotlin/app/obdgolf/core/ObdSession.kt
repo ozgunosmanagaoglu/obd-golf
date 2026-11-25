@@ -17,6 +17,8 @@ class ObdSession(
     private val slowEvery: Int = 10,
     /** Requests in a row without an answer before we call the link lost (car switched off, adapter gone). */
     private val maxMisses: Int = 6,
+    /** Extra PIDs read per slow round. */
+    private val extrasPerRound: Int = 4,
 ) {
 
     var adapter: AdapterInfo = AdapterInfo()
@@ -25,6 +27,10 @@ class ObdSession(
 
     /** Mode 01 PIDs the car said it supports. Unread ranges count as supported. */
     var supported: SupportedPids = SupportedPids()
+        private set
+
+    /** From the VIN (mode 09), null when the car does not report one (common before ~2005). */
+    var vehicle: VehicleInfo? = null
         private set
 
     // Live polling and fault reading share one adapter: one command at a time.
@@ -56,6 +62,7 @@ class ObdSession(
 
         val protocol = runCatching { ObdProtocol.fromDpn(ask("ATDPN")) }.getOrNull()
         adapter = AdapterInfo(elmVersion = elm, stnId = stn, protocol = protocol)
+        vehicle = runCatching { Vin.parse(ask("0902", timeoutMs = 3_000)) }.getOrNull()?.let { Vin.decode(it) }
     }
 
     /** ATZ, tried twice: some clones drop the first command after power-up. */
@@ -85,6 +92,9 @@ class ObdSession(
     fun poll(): Flow<CarData> = flow {
         val fast = listOf(Pid.RPM, Pid.SPEED, Pid.ENGINE_LOAD, Pid.THROTTLE).filter(supported::isSupported)
         val slow = listOf(Pid.COOLANT_TEMP, Pid.INTAKE_TEMP, Pid.AMBIENT_TEMP).filter(supported::isSupported)
+        // Extras only when the car lists them, a few per slow round so the live values stay fast.
+        val extras = Pid.EXTRAS.filter(supported::isKnownSupported)
+        var nextExtra = 0
         var data = CarData()
         var loop = 0
         var misses = 0
@@ -92,12 +102,13 @@ class ObdSession(
         var windowLoops = 0
 
         // One PID that times out or gets "NO DATA" is skipped; many in a row means the car is gone.
-        suspend fun read(pid: Pid): Double? {
+        suspend fun read(pid: Pid, counts: Boolean = true): Double? {
             val value = try {
                 ElmParser.parsePid(pid, ask(pid.command))
             } catch (_: ElmTimeoutException) {
                 null
             }
+            if (!counts) return value
             if (value == null) {
                 if (++misses >= maxMisses) throw java.io.IOException("Araçla bağlantı koptu. Kontak kapandı mı?")
             } else {
@@ -111,6 +122,10 @@ class ObdSession(
             if (loop % slowEvery == 0) {
                 for (pid in slow) data = data.with(pid, read(pid))
                 data = data.copy(batteryV = runCatching { ElmParser.parseVoltage(ask("ATRV")) }.getOrNull())
+                repeat(minOf(extrasPerRound, extras.size)) {
+                    val pid = extras[nextExtra++ % extras.size]
+                    data = data.with(pid, read(pid, counts = false))
+                }
             }
             loop++
             windowLoops++
