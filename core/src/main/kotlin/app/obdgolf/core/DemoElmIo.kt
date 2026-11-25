@@ -83,6 +83,7 @@ class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : Elm
             "ATZ" -> "\r\rELM327 v2.3\r\r"
             "ATRV" -> "14.1V\r"
             "STI" -> "?\r"
+            AdapterCheck.BOGUS -> "?\r"
             "ATDPN" -> "A6\r"
             "0100" -> "4100BE3FA813\r"
             "0120" -> "41208002A011\r"

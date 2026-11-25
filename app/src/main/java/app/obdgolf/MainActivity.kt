@@ -292,6 +292,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                     onReadBlock = vm::readBlock,
                     controlUnits = controlUnits,
                     onReadUnits = vm::readUnits,
+                    adapterCheck = (link as? LinkState.Connected)?.adapterCheck,
                 )
                 Tab.Faults -> FaultScreen(
                     state = faults,

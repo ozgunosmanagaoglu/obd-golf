@@ -13,6 +13,7 @@ import app.obdgolf.ble.BleDevice
 import app.obdgolf.bt.BluetoothConnector
 import app.obdgolf.bt.BluetoothPermissionException
 import app.obdgolf.bt.PairedDevice
+import app.obdgolf.core.AdapterCheck
 import app.obdgolf.core.CarData
 import app.obdgolf.core.ControlUnit
 import app.obdgolf.core.UnitInfo
@@ -57,7 +58,7 @@ const val DEMO = "Demo"
 sealed interface LinkState {
     data object Disconnected : LinkState
     data class Connecting(val name: String) : LinkState
-    data class Connected(val name: String, val adapterVersion: String?) : LinkState
+    data class Connected(val name: String, val adapterVersion: String?, val adapterCheck: AdapterCheck? = null) : LinkState
     data class Failed(val message: Msg) : LinkState
 }
 
@@ -511,6 +512,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     s.initialize()
                     log.note("Connected: ${s.adapter.label}; supported PIDs: " +
                         s.supported.all.joinToString(" ") { "%02X".format(it) })
+                    s.adapter.check?.let { log.note(it.logLine()) }
                     _vehicle.value = s.vehicle
                     _measuring.value = s.supportsMeasuringBlocks
                     if (s.brandValues.isNotEmpty()) log.note("Maker values: " + s.brandValues.joinToString(" "))
@@ -518,7 +520,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     log.note("Live requests to ${s.homeHeader}" + (if (s.singleReply) ", one reply each" else "") +
                         "; VW measuring blocks " + (if (s.supportsMeasuringBlocks) "available" else "not available"))
                     log.connected()
-                    _link.value = LinkState.Connected(name, s.adapter.label)
+                    _link.value = LinkState.Connected(name, s.adapter.label, s.adapter.check)
                     attempt = 0
                     s.poll().collect {
                         _data.value = it

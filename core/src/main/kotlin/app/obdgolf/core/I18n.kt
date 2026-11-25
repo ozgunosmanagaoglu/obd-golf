@@ -209,6 +209,15 @@ enum class Str(val en: String) {
     DTC_ADVICE_MISFIRE("If the engine warning light flashes, slow down and stop: misfires can damage the catalytic converter."),
     DTC_SEV_SUMMARY("Most urgent: {0}"),
     DTC_SEV_DISCLAIMER("A guide from the code alone, not a mechanic's diagnosis."),
+    ADAPTER_CHECK("Adapter check"),
+    ADAPTER_STN("STN chip: the most reliable kind of adapter."),
+    ADAPTER_OK("Genuine-looking ELM327. Everything in the app should work."),
+    ADAPTER_CLONE("Probably a clone chip. Live data and fault codes usually work; for coding a better adapter is safer."),
+    ADAPTER_LIMITED("This adapter can't talk to single control units. Live data and fault codes work; control units and coding won't."),
+    ADAPTER_REASON_V15("It reports ELM327 v1.5, a version the original maker never released."),
+    ADAPTER_REASON_ANY_OK("It accepts commands that don't exist, so its answers can't be fully trusted."),
+    ADAPTER_REASON_MISSING("Commands it doesn't know: {0}"),
+    ADAPTER_RECOMMENDED("Recommended adapters: {0}"),
 
     // Connection screen
     CONNECTED_WITH("Connected · {0}"),

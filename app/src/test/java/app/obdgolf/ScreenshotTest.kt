@@ -22,6 +22,7 @@ import app.obdgolf.ui.ThemeMode
 import kotlin.math.sin
 import app.obdgolf.core.Dtc
 import app.obdgolf.core.DtcKind
+import app.obdgolf.core.AdapterCheck
 import app.obdgolf.core.FaultReport
 import app.obdgolf.core.Lang
 import app.obdgolf.core.MakerGroup
@@ -118,6 +119,17 @@ abstract class ScreenshotTest(private val device: String, private val lang: Lang
     @Test fun light() = shot("1-theme-light", ThemeMode.LIGHT) { Dash(Preset.SPORT.dashboard) }
     @Test fun contrast() = shot("1-theme-high-contrast", ThemeMode.HIGH_CONTRAST) { Dash(Preset.SPORT.dashboard) }
     @Test fun bigFont() = shot("1-font-1.3x", fontScale = 1.3f) { Dash(Preset.DIAGNOSTIC.dashboard) }
+
+    @Test fun detailsCloneAdapter() = shot("2-details-clone-adapter") {
+        AppFrame(Tab.Details, {}) { DetailsScreen(
+            data, vehicle, "ELM327 v1.5 · CAN 11 bit 500k",
+            adapterCheck = AdapterCheck(
+                AdapterCheck.Verdict.LIMITED,
+                listOf(AdapterCheck.Reason.FAKE_V15, AdapterCheck.Reason.MISSING_COMMANDS),
+                listOf("ATFCSM0"),
+            ),
+        ) }
+    }
 
     @Test fun details() = shot("2-details") {
         AppFrame(Tab.Details, {}) { DetailsScreen(

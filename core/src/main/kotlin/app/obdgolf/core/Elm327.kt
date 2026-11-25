@@ -64,6 +64,8 @@ data class AdapterInfo(
     /** STN chip id (OBDLink, vLinker), e.g. "STN2120 v5.6.19". Null on plain ELM327 and clones. */
     val stnId: String? = null,
     val protocol: ObdProtocol? = null,
+    /** What the probe found; null when it could not run. */
+    val check: AdapterCheck? = null,
 ) {
     /** Short text for the connection screen. */
     val label: String
