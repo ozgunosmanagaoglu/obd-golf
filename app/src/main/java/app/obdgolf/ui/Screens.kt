@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -131,6 +133,8 @@ fun ConnectScreen(
     devices: List<PairedDevice>,
     autoConnect: Boolean,
     demo: Boolean,
+    permissionMissing: Boolean,
+    onGrantPermission: () -> Unit,
     onConnect: (PairedDevice) -> Unit,
     onDisconnect: () -> Unit,
     onRefresh: () -> Unit,
@@ -148,12 +152,25 @@ fun ConnectScreen(
                 val (title, sub, color) = when (link) {
                     is LinkState.Connected -> Triple(link.name, "Bağlı · ${link.adapterVersion ?: "ELM327"}", C.Green)
                     is LinkState.Connecting -> Triple(link.name, "Bağlanıyor…", C.Amber)
-                    is LinkState.Failed -> Triple("Yeniden deneniyor", link.message, C.Amber)
+                    is LinkState.Failed ->
+                        Triple(if (permissionMissing) "İzin gerekli" else "Yeniden deneniyor", link.message, C.Amber)
                     LinkState.Disconnected -> Triple("Bağlı değil", "Aşağıdan adaptörü seç", C.Muted)
                 }
                 Text(title, color = C.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Text(sub, color = color, fontSize = 13.sp)
-                if (link !is LinkState.Disconnected) {
+                if (permissionMissing) {
+                    Button(
+                        onClick = onGrantPermission,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = C.Red),
+                    ) {
+                        Text("İzin ver", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    }
+                    Text(
+                        "Pencere açılmazsa ayarlar sayfası açılır: İzinler > Yakındaki cihazlar > İzin ver.",
+                        color = C.Muted, fontSize = 12.sp,
+                    )
+                } else if (link !is LinkState.Disconnected) {
                     OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                         Text("Bağlantıyı kes", color = C.Text)
                     }

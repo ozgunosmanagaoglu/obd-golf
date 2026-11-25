@@ -17,6 +17,10 @@ data class PairedDevice(val name: String, val address: String) {
         get() = listOf("OBD", "VGATE", "ICAR", "ELM", "V-LINK").any { name.uppercase().contains(it) }
 }
 
+/** Android blocked the connection because a "Nearby devices" permission is missing. */
+class BluetoothPermissionException(val details: String) :
+    IOException("Android bağlantıyı izin yüzünden engelledi.\n$details")
+
 /** Classic Bluetooth (SPP) link to an ELM327 adapter such as the Vgate iCar Pro BT 3.0. */
 @SuppressLint("MissingPermission") // callers check BLUETOOTH_CONNECT first
 class BluetoothConnector(context: Context) {
@@ -39,15 +43,37 @@ class BluetoothConnector(context: Context) {
             if (a.isDiscovering) a.cancelDiscovery()
         } catch (_: SecurityException) {
         }
-        val socket: BluetoothSocket = try {
-            device.createRfcommSocketToServiceRecord(SPP_UUID).also { it.connect() }
-        } catch (e: IOException) {
-            // Some cheap adapters only accept an insecure socket.
-            device.createInsecureRfcommSocketToServiceRecord(SPP_UUID).also { it.connect() }
-        } catch (e: SecurityException) {
-            throw IOException("Bluetooth izni yok. Ayarlar > Uygulamalar > Golf OBD > İzinler'den \"Yakındaki cihazlar\" iznini aç.")
+        // Try the normal way first, then the ways cheap ELM327 clones sometimes need.
+        // Every failure is kept so the screen can show what Android really said.
+        val attempts: List<Pair<String, () -> BluetoothSocket>> = listOf(
+            "güvenli" to { device.createRfcommSocketToServiceRecord(SPP_UUID) },
+            "güvensiz" to { device.createInsecureRfcommSocketToServiceRecord(SPP_UUID) },
+            "kanal 1" to {
+                device.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
+                    .invoke(device, 1) as BluetoothSocket
+            },
+        )
+        val errors = mutableListOf<Throwable>()
+        var socket: BluetoothSocket? = null
+        for ((label, make) in attempts) {
+            var s: BluetoothSocket? = null
+            try {
+                s = make()
+                s.connect()
+                socket = s
+                break
+            } catch (e: Exception) {
+                runCatching { s?.close() }
+                val cause = (e as? java.lang.reflect.InvocationTargetException)?.targetException ?: e
+                errors += IOException("$label: ${cause.javaClass.simpleName}: ${cause.message}", cause)
+            }
         }
-        StreamElmIo(socket.inputStream, socket.outputStream) { runCatching { socket.close() } }
+        val sock = socket ?: run {
+            val details = errors.joinToString("\n") { it.message.orEmpty() }
+            if (errors.all { it.cause is SecurityException }) throw BluetoothPermissionException(details)
+            throw IOException("Adaptöre bağlanılamadı (kontak açık mı?)\n$details")
+        }
+        StreamElmIo(sock.inputStream, sock.outputStream) { runCatching { sock.close() } }
     }
 
     companion object {

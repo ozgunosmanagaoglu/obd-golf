@@ -1,7 +1,10 @@
 package app.obdgolf
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -42,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import app.obdgolf.bt.PairedDevice
 import app.obdgolf.ui.C
 import app.obdgolf.ui.CarScreen
 import app.obdgolf.ui.ConnectScreen
@@ -56,33 +60,86 @@ import app.obdgolf.ui.ObdTheme
 class MainActivity : ComponentActivity() {
     private val vm: ObdViewModel by viewModels()
 
+    /** Device the user tapped while a permission was missing; connected once it is granted. */
+    private var pendingDevice: PairedDevice? = null
+    /** True when the dialog was opened by the "İzin ver" button, so a silent refusal opens app settings. */
+    private var fromButton = false
+
     private val askBluetooth =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-            if (result.values.any { !it }) vm.onPermissionDenied()
-            vm.onReady()
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            val missing = missingBluetoothPermissions()
+            vm.setPermissionMissing(missing.isNotEmpty())
+            vm.refreshDevices()
+            if (missing.isEmpty()) {
+                pendingDevice?.let { vm.connect(it) } ?: vm.onReady()
+            } else if (fromButton && missing.none { shouldShowRequestPermissionRationale(it) }) {
+                // Android (or MIUI) no longer shows the dialog: only the settings page can fix it.
+                openAppSettings()
+            } else {
+                vm.onReady()
+            }
+            pendingDevice = null
+            fromButton = false
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        val missing = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            listOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN).filter {
-                ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-            }
-        } else emptyList()
+        val missing = missingBluetoothPermissions()
         if (missing.isNotEmpty()) {
             askBluetooth.launch(missing.toTypedArray())
         } else {
             vm.onReady()
         }
 
-        setContent { ObdTheme { App(vm) } }
+        setContent {
+            ObdTheme {
+                App(vm, onConnect = ::connectWithPermission, onGrantPermission = ::requestBluetoothPermission)
+            }
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        // The user may come back from the settings page with the permission turned on.
+        if (vm.permissionMissing.value) vm.setPermissionMissing(missingBluetoothPermissions().isNotEmpty())
         vm.refreshDevices()
+    }
+
+    private fun missingBluetoothPermissions(): List<String> =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            listOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN).filter {
+                ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+            }
+        } else emptyList()
+
+    private fun connectWithPermission(device: PairedDevice) {
+        val missing = missingBluetoothPermissions()
+        if (missing.isEmpty()) {
+            vm.connect(device)
+        } else {
+            pendingDevice = device
+            fromButton = true
+            askBluetooth.launch(missing.toTypedArray())
+        }
+    }
+
+    private fun requestBluetoothPermission() {
+        val missing = missingBluetoothPermissions()
+        if (missing.isEmpty()) {
+            vm.setPermissionMissing(false)
+            return
+        }
+        fromButton = true
+        askBluetooth.launch(missing.toTypedArray())
+    }
+
+    private fun openAppSettings() {
+        startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
     }
 }
 
@@ -91,12 +148,12 @@ private enum class Tab(val label: String) {
 }
 
 @Composable
-private fun App(vm: ObdViewModel) {
+private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit) {
     val link by vm.link.collectAsState()
     var splash by rememberSaveable { mutableStateOf(true) }
 
     Box(Modifier.fillMaxSize().background(C.Bg)) {
-        MainContent(vm)
+        MainContent(vm, onConnect, onGrantPermission)
         // Loading screen on top while Bluetooth and auto-connect start underneath.
         AnimatedVisibility(visible = splash, exit = fadeOut(tween(350))) {
             val status = when (val l = link) {
@@ -110,7 +167,7 @@ private fun App(vm: ObdViewModel) {
 }
 
 @Composable
-private fun MainContent(vm: ObdViewModel) {
+private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit) {
     val data by vm.data.collectAsState()
     val link by vm.link.collectAsState()
     val devices by vm.devices.collectAsState()
@@ -118,6 +175,7 @@ private fun MainContent(vm: ObdViewModel) {
     val demo by vm.demo.collectAsState()
     val drives by vm.drives.collectAsState()
     val faults by vm.faults.collectAsState()
+    val permissionMissing by vm.permissionMissing.collectAsState()
     var tab by rememberSaveable { mutableStateOf(Tab.Garage) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -146,7 +204,9 @@ private fun MainContent(vm: ObdViewModel) {
                         devices = devices,
                         autoConnect = auto,
                         demo = demo,
-                        onConnect = { vm.connect(it); tab = Tab.Garage },
+                        permissionMissing = permissionMissing,
+                        onGrantPermission = onGrantPermission,
+                        onConnect = { onConnect(it); tab = Tab.Garage },
                         onDisconnect = vm::disconnect,
                         onRefresh = vm::refreshDevices,
                         onAutoConnect = vm::setAutoConnect,
