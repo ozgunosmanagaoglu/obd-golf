@@ -19,10 +19,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import app.obdgolf.LinkState
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
+import app.obdgolf.core.WifiAddress
 
 @Composable
 fun Header(link: LinkState, onLinkClick: () -> Unit) {
@@ -125,6 +134,8 @@ fun ConnectScreen(
     permissionMissing: Boolean,
     onGrantPermission: () -> Unit,
     onConnect: (PairedDevice) -> Unit,
+    wifiAddress: WifiAddress,
+    onConnectWifi: (WifiAddress) -> Unit,
     onDisconnect: () -> Unit,
     onRefresh: () -> Unit,
     onAutoConnect: (Boolean) -> Unit,
@@ -192,6 +203,41 @@ fun ConnectScreen(
                             color = if (current) C.Green else C.Muted, fontSize = 13.sp,
                         )
                     }
+                }
+            }
+        }
+
+        SectionLabel("Wi-Fi adaptör")
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Önce telefonun Wi-Fi ayarlarından adaptörün ağına bağlan (adı genelde WiFi_OBDII, OBDII ya da V-LINK). " +
+                        "Adres çoğu adaptörde 192.168.0.10:35000.",
+                    color = C.Muted, fontSize = 13.sp,
+                )
+                var text by remember(wifiAddress) { mutableStateOf(wifiAddress.toString()) }
+                val parsed = WifiAddress.parse(text)
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Adres (IP:port)") },
+                    singleLine = true,
+                    isError = parsed == null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = C.Text, unfocusedTextColor = C.Text,
+                        focusedBorderColor = C.Red, unfocusedBorderColor = C.Divider,
+                        focusedLabelColor = C.Red, unfocusedLabelColor = C.Muted, cursorColor = C.Red,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(
+                    onClick = { parsed?.let(onConnectWifi) },
+                    enabled = parsed != null,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = C.Red),
+                ) {
+                    Text("Wi-Fi ile bağlan", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
