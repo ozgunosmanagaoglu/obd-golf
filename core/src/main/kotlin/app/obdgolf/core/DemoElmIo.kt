@@ -29,7 +29,11 @@ class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : Elm
         return when (command) {
             "ATZ" -> "\r\rELM327 v2.3\r\r"
             "ATRV" -> "14.1V\r"
+            "STI" -> "?\r"
+            "ATDPN" -> "A6\r"
             "0100" -> "4100BE3FA813\r"
+            "0120" -> "41208002A011\r"
+            "0140" -> "4140FED00000\r"
             "010C" -> "410C" + hex2((rpm * 4).roundToInt()) + "\r"
             "010D" -> "410D" + hex1(speed.roundToInt()) + "\r"
             "0104" -> "4104" + hex1(((0.14 + (if (gas) 0.68 else 0.0) + f * 0.18) * 255).roundToInt()) + "\r"

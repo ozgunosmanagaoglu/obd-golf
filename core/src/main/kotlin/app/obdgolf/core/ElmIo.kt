@@ -9,7 +9,7 @@ interface ElmIo {
 }
 
 /** The adapter did not finish its reply (no '>' prompt) in time. */
-class ElmTimeoutException(val command: String) : IOException("Timeout waiting for reply to $command")
+class ElmTimeoutException(val command: String) : IOException("Adaptör \"$command\" komutuna zamanında cevap vermedi")
 
 /**
  * ELM327 command/reply framing over any [Transport]: write "command\r", collect bytes until '>'.
