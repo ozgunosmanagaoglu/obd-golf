@@ -333,6 +333,45 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putBoolean("auto", on).apply()
     }
 
+    // The notification text follows the link: connecting → connected → waiting for the car.
+    init {
+        viewModelScope.launch {
+            _link.collect { st ->
+                val app = getApplication<Application>()
+                val str = strings()
+                when (st) {
+                    is LinkState.Connecting -> if (st.name != DEMO) LinkService.update(app, "Revora", str.format(Str.NOTIF_CONNECTING, st.name))
+                    is LinkState.Connected -> if (st.name != DEMO) LinkService.update(app, "Revora", str.format(Str.NOTIF_CONNECTED, st.name))
+                    is LinkState.Failed -> LinkService.update(app, "Revora", str[Str.NOTIF_WAITING])
+                    // Stopped in disconnect() itself, so a quick disconnect + connect never races.
+                    LinkState.Disconnected -> Unit
+                }
+            }
+        }
+    }
+
+    private val _batteryUnrestricted = MutableStateFlow(true)
+    /** False when Android may stop the app in the background to save battery (common on Xiaomi, Samsung). */
+    val batteryUnrestricted: StateFlow<Boolean> = _batteryUnrestricted.asStateFlow()
+
+    fun refreshBattery() {
+        val app = getApplication<Application>()
+        val pm = app.getSystemService(android.os.PowerManager::class.java)
+        _batteryUnrestricted.value = pm?.isIgnoringBatteryOptimizations(app.packageName) ?: true
+    }
+
+    /** The app's own settings page: battery ("No restrictions" on Xiaomi/Samsung) is one tap from there. */
+    fun openBatterySettings() {
+        val app = getApplication<Application>()
+        runCatching {
+            app.startActivity(
+                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.fromParts("package", app.packageName, null))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+    }
+
     fun disconnect() {
         saveDrive(recorder?.finish())
         recorder = null
@@ -341,6 +380,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         session?.close()
         session = null
         _link.value = LinkState.Disconnected
+        LinkService.stop(getApplication())
         _vehicle.value = null
         _faults.value = FaultState.Idle
         _measuring.value = false
@@ -351,6 +391,10 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun start(name: String, open: suspend () -> ElmIo) {
         disconnect()
+        if (name != DEMO) {
+            val str = strings()
+            LinkService.start(getApplication(), str[Str.NOTIF_CHANNEL], "Revora", str.format(Str.NOTIF_CONNECTING, name))
+        }
         recorder = DriveRecorder(demo = name == DEMO)
         job = viewModelScope.launch {
             var attempt = 0
@@ -386,6 +430,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     recorder = null
                     _permissionMissing.value = !hasBluetoothPermissions()
                     _link.value = LinkState.Failed(e.toMsg(Str.NO_BT_PERMISSION))
+                    LinkService.stop(getApplication())
                     job = null
                     return@launch
                 } catch (e: Exception) {
