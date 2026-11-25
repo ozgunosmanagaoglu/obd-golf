@@ -9,6 +9,8 @@ import app.obdgolf.core.StreamTransport
 import app.obdgolf.core.TransportElmIo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import app.obdgolf.core.LocalizedIOException
+import app.obdgolf.core.Str
 import java.io.IOException
 import java.util.UUID
 
@@ -19,8 +21,7 @@ data class PairedDevice(val name: String, val address: String) {
 }
 
 /** Android blocked the connection because a "Nearby devices" permission is missing. */
-class BluetoothPermissionException(val details: String) :
-    IOException("Android bağlantıyı izin yüzünden engelledi.\n$details")
+class BluetoothPermissionException(val details: String) : LocalizedIOException(Str.BT_BLOCKED, details)
 
 /** Classic Bluetooth (SPP) link to an ELM327 adapter such as the Vgate iCar Pro BT 3.0. */
 @SuppressLint("MissingPermission") // callers check BLUETOOTH_CONNECT first
@@ -36,7 +37,7 @@ class BluetoothConnector(context: Context) {
             .sortedByDescending { it.looksLikeObd }
 
     suspend fun connect(address: String): ElmIo = withContext(Dispatchers.IO) {
-        val a = adapter ?: throw IOException("Bu telefonda Bluetooth yok")
+        val a = adapter ?: throw LocalizedIOException(Str.NO_BLUETOOTH)
         val device = a.getRemoteDevice(address)
         // Stopping a running scan makes the connection faster and more reliable, but on
         // Android 12+ it needs BLUETOOTH_SCAN. Without it we just skip this step.
@@ -47,9 +48,9 @@ class BluetoothConnector(context: Context) {
         // Try the normal way first, then the ways cheap ELM327 clones sometimes need.
         // Every failure is kept so the screen can show what Android really said.
         val attempts: List<Pair<String, () -> BluetoothSocket>> = listOf(
-            "güvenli" to { device.createRfcommSocketToServiceRecord(SPP_UUID) },
-            "güvensiz" to { device.createInsecureRfcommSocketToServiceRecord(SPP_UUID) },
-            "kanal 1" to {
+            "secure" to { device.createRfcommSocketToServiceRecord(SPP_UUID) },
+            "insecure" to { device.createInsecureRfcommSocketToServiceRecord(SPP_UUID) },
+            "channel 1" to {
                 device.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
                     .invoke(device, 1) as BluetoothSocket
             },
@@ -72,7 +73,7 @@ class BluetoothConnector(context: Context) {
         val sock = socket ?: run {
             val details = errors.joinToString("\n") { it.message.orEmpty() }
             if (errors.all { it.cause is SecurityException }) throw BluetoothPermissionException(details)
-            throw IOException("Adaptöre bağlanılamadı (kontak açık mı?)\n$details")
+            throw LocalizedIOException(Str.BT_CONNECT_FAILED, details)
         }
         TransportElmIo(StreamTransport(sock.inputStream, sock.outputStream) { runCatching { sock.close() } })
     }

@@ -175,7 +175,7 @@ class Elm327Test {
         val s = ObdSession(io, maxMisses = 6).also { it.initialize() }
         listOf("010C", "010D", "0104", "0111", "0105", "010F", "0146").forEach { io.timeOut(it, 100) }
         val e = assertFailsWith<IOException> { s.poll().take(10).toList() }
-        assertTrue(e.message!!.contains("Kontak"))
+        assertEquals(Str.VEHICLE_LINK_LOST, ((e as LocalizedIOException).msg as Msg.Key).key)
     }
 
     @Test fun demoAdapterLabel() = runBlocking {

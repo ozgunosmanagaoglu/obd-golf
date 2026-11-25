@@ -5,7 +5,8 @@ enum class MakerGroup { VAG, BMW, MERCEDES, STELLANTIS, RENAULT_NISSAN, FORD, TO
 
 /** What the VIN tells us about the car. */
 data class VehicleInfo(val vin: String, val make: String?, val group: MakerGroup, val modelYear: Int?) {
-    val label: String get() = listOfNotNull(make, modelYear?.toString()).joinToString(" ").ifEmpty { "Bilinmeyen araç" }
+    /** "Volkswagen 2011"; null when neither make nor year is known (the UI then says "unknown vehicle"). */
+    val label: String? get() = listOfNotNull(make, modelYear?.toString()).joinToString(" ").ifEmpty { null }
 }
 
 object Vin {

@@ -45,9 +45,7 @@ object TcpTransport {
             socket.tcpNoDelay = true
         } catch (e: IOException) {
             runCatching { socket.close() }
-            throw IOException(
-                "Wi-Fi adaptöre bağlanılamadı ($address). Telefon adaptörün Wi-Fi ağına bağlı mı?", e,
-            )
+            throw LocalizedIOException(Msg.of(Str.WIFI_CONNECT_FAILED, address), e)
         }
         StreamTransport(socket.getInputStream(), socket.getOutputStream()) { runCatching { socket.close() } }
     }

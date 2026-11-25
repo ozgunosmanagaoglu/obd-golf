@@ -7,54 +7,56 @@ private fun trim(d: IntArray) = (d[0] - 128) * 100.0 / 128
 /**
  * Standard SAE J1979 mode 01 PIDs. Every OBD-II car (petrol from 2001, diesel from 2004 in the EU,
  * 1996 in the US) answers a subset; [SupportedPids] tells which.
- * [parse] gets the data bytes after the "41 xx" header. [label] is Turkish for now (localised later).
+ * [parse] gets the data bytes after the "41 xx" header. Names are translated via [labelKey].
  */
 enum class Pid(
     val code: String,
     val bytes: Int,
-    val label: String,
     val unit: String,
     val decimals: Int = 0,
     val parse: (IntArray) -> Double,
 ) {
     // Polled all the time (dashboard, drive log)
-    ENGINE_LOAD("04", 1, "Motor yükü", "%", parse = ::pct),
-    COOLANT_TEMP("05", 1, "Su sıcaklığı", "°C", parse = { it[0] - 40.0 }),
-    RPM("0C", 2, "Devir", "rpm", parse = { ab(it) / 4.0 }),
-    SPEED("0D", 1, "Hız", "km/h", parse = { it[0].toDouble() }),
-    INTAKE_TEMP("0F", 1, "Emme sıcaklığı", "°C", parse = { it[0] - 40.0 }),
-    THROTTLE("11", 1, "Gaz kelebeği", "%", parse = ::pct),
-    AMBIENT_TEMP("46", 1, "Dış sıcaklık", "°C", parse = { it[0] - 40.0 }),
+    ENGINE_LOAD("04", 1, "%", parse = ::pct),
+    COOLANT_TEMP("05", 1, "°C", parse = { it[0] - 40.0 }),
+    RPM("0C", 2, "rpm", parse = { ab(it) / 4.0 }),
+    SPEED("0D", 1, "km/h", parse = { it[0].toDouble() }),
+    INTAKE_TEMP("0F", 1, "°C", parse = { it[0] - 40.0 }),
+    THROTTLE("11", 1, "%", parse = ::pct),
+    AMBIENT_TEMP("46", 1, "°C", parse = { it[0] - 40.0 }),
 
-    // Read in turns on the "Veriler" screen when the car supports them
-    SHORT_FUEL_TRIM_1("06", 1, "Kısa yakıt düzeltme (B1)", "%", 1, ::trim),
-    LONG_FUEL_TRIM_1("07", 1, "Uzun yakıt düzeltme (B1)", "%", 1, ::trim),
-    SHORT_FUEL_TRIM_2("08", 1, "Kısa yakıt düzeltme (B2)", "%", 1, ::trim),
-    LONG_FUEL_TRIM_2("09", 1, "Uzun yakıt düzeltme (B2)", "%", 1, ::trim),
-    FUEL_PRESSURE("0A", 1, "Yakıt basıncı", "kPa", parse = { it[0] * 3.0 }),
-    MAP("0B", 1, "Emme manifold basıncı", "kPa", parse = { it[0].toDouble() }),
-    TIMING_ADVANCE("0E", 1, "Ateşleme avansı", "°", 1, { it[0] / 2.0 - 64 }),
-    MAF("10", 2, "Hava akışı (MAF)", "g/s", 1, { ab(it) / 100.0 }),
-    RUN_TIME("1F", 2, "Motor çalışma süresi", "s", parse = { ab(it).toDouble() }),
-    DISTANCE_WITH_MIL("21", 2, "Arıza lambasıyla yol", "km", parse = { ab(it).toDouble() }),
-    FUEL_RAIL_PRESSURE("23", 2, "Yakıt rampası basıncı", "kPa", parse = { ab(it) * 10.0 }),
-    COMMANDED_EGR("2C", 1, "EGR komutu", "%", parse = ::pct),
-    FUEL_LEVEL("2F", 1, "Yakıt seviyesi", "%", parse = ::pct),
-    DISTANCE_SINCE_CLEAR("31", 2, "Kod silindiğinden beri yol", "km", parse = { ab(it).toDouble() }),
-    BARO("33", 1, "Atmosfer basıncı", "kPa", parse = { it[0].toDouble() }),
-    CATALYST_TEMP_1("3C", 2, "Katalizör sıcaklığı (B1S1)", "°C", parse = { ab(it) / 10.0 - 40 }),
-    MODULE_VOLTAGE("42", 2, "Beyin voltajı", "V", 2, { ab(it) / 1000.0 }),
-    ABSOLUTE_LOAD("43", 2, "Mutlak yük", "%", parse = { ab(it) * 100.0 / 255 }),
-    LAMBDA("44", 2, "İstenen lambda", "λ", 3, { ab(it) * 2.0 / 65536 }),
-    RELATIVE_THROTTLE("45", 1, "Bağıl gaz kelebeği", "%", parse = ::pct),
-    ACCEL_PEDAL_D("49", 1, "Gaz pedalı (D)", "%", parse = ::pct),
-    ACCEL_PEDAL_E("4A", 1, "Gaz pedalı (E)", "%", parse = ::pct),
-    THROTTLE_ACTUATOR("4C", 1, "Gaz kelebeği komutu", "%", parse = ::pct),
-    ETHANOL("52", 1, "Etanol oranı", "%", parse = ::pct),
-    OIL_TEMP("5C", 1, "Yağ sıcaklığı", "°C", parse = { it[0] - 40.0 }),
-    FUEL_RATE("5E", 2, "Yakıt tüketimi", "L/h", 1, { ab(it) / 20.0 }),
-    DEMANDED_TORQUE("61", 1, "İstenen tork", "%", parse = { it[0] - 125.0 }),
-    ACTUAL_TORQUE("62", 1, "Gerçek tork", "%", parse = { it[0] - 125.0 });
+    // Read in turns on the Data screen when the car supports them
+    SHORT_FUEL_TRIM_1("06", 1, "%", 1, ::trim),
+    LONG_FUEL_TRIM_1("07", 1, "%", 1, ::trim),
+    SHORT_FUEL_TRIM_2("08", 1, "%", 1, ::trim),
+    LONG_FUEL_TRIM_2("09", 1, "%", 1, ::trim),
+    FUEL_PRESSURE("0A", 1, "kPa", parse = { it[0] * 3.0 }),
+    MAP("0B", 1, "kPa", parse = { it[0].toDouble() }),
+    TIMING_ADVANCE("0E", 1, "°", 1, { it[0] / 2.0 - 64 }),
+    MAF("10", 2, "g/s", 1, { ab(it) / 100.0 }),
+    RUN_TIME("1F", 2, "s", parse = { ab(it).toDouble() }),
+    DISTANCE_WITH_MIL("21", 2, "km", parse = { ab(it).toDouble() }),
+    FUEL_RAIL_PRESSURE("23", 2, "kPa", parse = { ab(it) * 10.0 }),
+    COMMANDED_EGR("2C", 1, "%", parse = ::pct),
+    FUEL_LEVEL("2F", 1, "%", parse = ::pct),
+    DISTANCE_SINCE_CLEAR("31", 2, "km", parse = { ab(it).toDouble() }),
+    BARO("33", 1, "kPa", parse = { it[0].toDouble() }),
+    CATALYST_TEMP_1("3C", 2, "°C", parse = { ab(it) / 10.0 - 40 }),
+    MODULE_VOLTAGE("42", 2, "V", 2, { ab(it) / 1000.0 }),
+    ABSOLUTE_LOAD("43", 2, "%", parse = { ab(it) * 100.0 / 255 }),
+    LAMBDA("44", 2, "λ", 3, { ab(it) * 2.0 / 65536 }),
+    RELATIVE_THROTTLE("45", 1, "%", parse = ::pct),
+    ACCEL_PEDAL_D("49", 1, "%", parse = ::pct),
+    ACCEL_PEDAL_E("4A", 1, "%", parse = ::pct),
+    THROTTLE_ACTUATOR("4C", 1, "%", parse = ::pct),
+    ETHANOL("52", 1, "%", parse = ::pct),
+    OIL_TEMP("5C", 1, "°C", parse = { it[0] - 40.0 }),
+    FUEL_RATE("5E", 2, "L/h", 1, { ab(it) / 20.0 }),
+    DEMANDED_TORQUE("61", 1, "%", parse = { it[0] - 125.0 }),
+    ACTUAL_TORQUE("62", 1, "%", parse = { it[0] - 125.0 });
+
+    /** Its name in [Strings]: Str.PID_<name>. */
+    val labelKey: Str get() = Str.valueOf("PID_$name")
 
     val command: String get() = "01$code"
     val number: Int get() = code.toInt(16)

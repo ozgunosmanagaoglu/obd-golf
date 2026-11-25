@@ -18,6 +18,8 @@ import app.obdgolf.core.BleProfiles
 import app.obdgolf.core.ElmIo
 import app.obdgolf.core.GattChar
 import app.obdgolf.core.GattService
+import app.obdgolf.core.LocalizedIOException
+import app.obdgolf.core.Str
 import app.obdgolf.core.PushTransport
 import app.obdgolf.core.TransportElmIo
 import kotlinx.coroutines.CompletableDeferred
@@ -50,7 +52,7 @@ class BleConnector(private val context: Context) {
     /** Emits the growing list of named BLE devices, OBD-looking ones first, until the collector stops. */
     fun scan(): Flow<List<BleDevice>> = callbackFlow {
         val scanner = adapter?.takeIf { it.isEnabled }?.bluetoothLeScanner
-            ?: throw IOException("Bluetooth kapalı")
+            ?: throw LocalizedIOException(Str.BT_OFF)
         val found = linkedMapOf<String, BleDevice>()
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -61,7 +63,7 @@ class BleConnector(private val context: Context) {
             }
 
             override fun onScanFailed(errorCode: Int) {
-                close(IOException("BLE taraması başlamadı (kod $errorCode). Bluetooth'u kapatıp açmayı dene."))
+                close(LocalizedIOException(Str.BLE_SCAN_NOT_STARTED, errorCode))
             }
         }
         val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
@@ -70,8 +72,8 @@ class BleConnector(private val context: Context) {
     }
 
     suspend fun connect(address: String): ElmIo {
-        val a = adapter ?: throw IOException("Bu telefonda Bluetooth yok")
-        if (!a.isEnabled) throw IOException("Bluetooth kapalı")
+        val a = adapter ?: throw LocalizedIOException(Str.NO_BLUETOOTH)
+        if (!a.isEnabled) throw LocalizedIOException(Str.BT_OFF)
         return GattLink(a.getRemoteDevice(address)).open()
     }
 
@@ -91,8 +93,8 @@ class BleConnector(private val context: Context) {
                 if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
                     connected.complete(Unit)
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                    connected.completeExceptionally(IOException("BLE adaptöre bağlanılamadı (durum $status). Kontak açık mı?"))
-                    transport?.onClosed("Adaptör bağlantısı koptu")
+                    connected.completeExceptionally(LocalizedIOException(Str.BLE_CONNECT_FAILED, status))
+                    transport?.onClosed(Str.ADAPTER_LINK_LOST)
                     g.close()
                 }
             }
@@ -124,18 +126,18 @@ class BleConnector(private val context: Context) {
 
         suspend fun open(): ElmIo {
             val g = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
-                ?: throw IOException("BLE bağlantısı başlatılamadı")
+                ?: throw LocalizedIOException(Str.BLE_START_FAILED)
             gatt = g
             try {
                 withTimeout(12_000) { connected.await() }
-                if (!g.discoverServices()) throw IOException("BLE servisleri okunamadı")
+                if (!g.discoverServices()) throw LocalizedIOException(Str.BLE_SERVICES_FAILED)
                 withTimeout(10_000) { discovered.await() }
 
                 val services = g.services.map { s ->
                     GattService(s.uuid.toString(), s.characteristics.map { GattChar(it.uuid.toString(), it.properties) })
                 }
                 val ch = BleProfiles.pick(services)
-                    ?: throw IOException("Bu BLE cihazı bir OBD adaptörü gibi görünmüyor (OBD servisi yok).")
+                    ?: throw LocalizedIOException(Str.BLE_NOT_OBD)
                 channel = ch
                 val service = g.getService(UUID.fromString(ch.serviceUuid))
                 val writeChar = service.getCharacteristic(UUID.fromString(ch.writeUuid))
@@ -151,7 +153,7 @@ class BleConnector(private val context: Context) {
             } catch (e: Exception) {
                 runCatching { g.disconnect() }
                 runCatching { g.close() }
-                throw if (e is TimeoutCancellationException) IOException("BLE adaptör cevap vermedi. Kontak açık mı, adaptör yakında mı?") else e
+                throw if (e is TimeoutCancellationException) LocalizedIOException(Str.BLE_NO_REPLY) else e
             }
         }
 
@@ -191,7 +193,7 @@ class BleConnector(private val context: Context) {
                 // The stack is still busy with the previous packet: wait a little and try again.
                 delay(30L * (attempt + 1))
             }
-            throw IOException("BLE adaptöre yazılamadı")
+            throw LocalizedIOException(Str.BLE_WRITE_FAILED)
         }
     }
 

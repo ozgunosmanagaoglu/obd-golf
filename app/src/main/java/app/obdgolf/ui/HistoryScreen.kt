@@ -41,7 +41,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.text.format.DateFormat
 import app.obdgolf.core.Drive
+import app.obdgolf.core.Str
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -51,19 +53,32 @@ private val Glass = Color(0x0AFFFFFF)
 private val GlassLine = Color(0x12FFFFFF)
 private val Blue = Color(0xFF5AA9FF)
 
-private val dayFmt = SimpleDateFormat("d MMMM EEEE", Locale("tr"))
-private val timeFmt = SimpleDateFormat("HH:mm", Locale("tr"))
+private val timeFmt = SimpleDateFormat("HH:mm", Locale.ROOT)
 
+/** "Wednesday, 25 November" in the order and words of the app language. */
+@Composable
+private fun dayFormat(): SimpleDateFormat {
+    val locale = LocalStrings.current.lang.locale
+    return remember(locale) { SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, "EEEEdMMMM"), locale) }
+}
+
+/** Upper-case label in the app language (Turkish i → İ). */
+@Composable
+private fun caps(key: Str): String = s(key).uppercase(LocalStrings.current.lang.locale)
+
+@Composable
 private fun duration(sec: Long): String {
     val h = sec / 3600
     val m = (sec % 3600) / 60
-    return if (h > 0) "${h} sa ${m} dk" else "${m} dk"
+    return if (h > 0) s(Str.HOURS_MINUTES, h, m) else s(Str.MINUTES, m)
 }
 
 @Composable
 fun HistoryScreen(drives: List<Drive>, onDelete: (Drive) -> Unit) {
     var openStart by rememberSaveable { mutableStateOf<Long?>(null) }
     val open = drives.firstOrNull { it.startMs == openStart }
+    val dayFmt = dayFormat()
+    val locale = LocalStrings.current.lang.locale
     if (open != null) {
         DriveDetail(open, onBack = { openStart = null }, onDelete = { onDelete(open); openStart = null })
         return
@@ -76,29 +91,29 @@ fun HistoryScreen(drives: List<Drive>, onDelete: (Drive) -> Unit) {
     ) {
         item {
             Column {
-                Text("GEÇMİŞ", color = Label, fontFamily = Sora, fontSize = 11.sp, letterSpacing = 3.sp)
-                Text("Sürüşlerin", color = C.Text, fontFamily = Sora, fontWeight = FontWeight.Light, fontSize = 24.sp)
+                Text(caps(Str.TAB_HISTORY), color = Label, fontFamily = Sora, fontSize = 11.sp, letterSpacing = 3.sp)
+                Text(s(Str.YOUR_DRIVES), color = C.Text, fontFamily = Sora, fontWeight = FontWeight.Light, fontSize = 24.sp)
             }
         }
         item {
             val real = drives.filterNot { it.demo }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SummaryTile("TOPLAM", "%.0f".format(LocalUnits.current.distance(real.sumOf { it.distanceKm })), LocalUnits.current.distanceUnit, Modifier.weight(1f))
-                SummaryTile("SÜRÜŞ", real.size.toString(), "", Modifier.weight(1f))
-                SummaryTile("SÜRE", duration(real.sumOf { it.durationSec }), "", Modifier.weight(1f))
+                SummaryTile(caps(Str.TOTAL), "%.0f".format(LocalUnits.current.distance(real.sumOf { it.distanceKm })), LocalUnits.current.distanceUnit, Modifier.weight(1f))
+                SummaryTile(caps(Str.DRIVES), real.size.toString(), "", Modifier.weight(1f))
+                SummaryTile(caps(Str.DURATION), duration(real.sumOf { it.durationSec }), "", Modifier.weight(1f))
             }
         }
         if (drives.isEmpty()) {
             item {
                 Text(
-                    "Henüz kayıtlı sürüş yok. Araca bağlanıp motoru çalıştırdığında sürüşler kendiliğinden kaydedilir.",
+                    s(Str.NO_DRIVES),
                     color = Label, fontFamily = Sora, fontSize = 14.sp, modifier = Modifier.padding(top = 24.dp),
                 )
             }
         }
         drives.groupBy { dayFmt.format(Date(it.startMs)) }.forEach { (day, list) ->
             item(key = "day-$day") {
-                Text(day.uppercase(Locale("tr")), color = Label, fontFamily = Sora, fontSize = 11.sp, letterSpacing = 2.sp,
+                Text(day.uppercase(locale), color = Label, fontFamily = Sora, fontSize = 11.sp, letterSpacing = 2.sp,
                     modifier = Modifier.padding(top = 8.dp))
             }
             items(list, key = { it.startMs }) { d -> DriveCard(d) { openStart = d.startMs } }
@@ -138,7 +153,7 @@ private fun DriveCard(d: Drive, onClick: () -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             Stat("%.1f ${LocalUnits.current.distanceUnit}".format(LocalUnits.current.distance(d.distanceKm)))
             Stat(duration(d.durationSec))
-            Stat("maks ${LocalUnits.current.speed(d.maxSpeedKmh)!!.toInt()} ${LocalUnits.current.speedUnit}")
+            Stat(s(Str.MAX_VALUE, "${LocalUnits.current.speed(d.maxSpeedKmh)!!.toInt()} ${LocalUnits.current.speedUnit}"))
         }
     }
 }
@@ -149,50 +164,51 @@ private fun Stat(text: String) = Text(text, color = Color(0xFFD7D9DE), fontFamil
 @Composable
 private fun DriveDetail(d: Drive, onBack: () -> Unit, onDelete: () -> Unit) {
     var confirm by remember { mutableStateOf(false) }
+    val dayFmt = dayFormat()
     Column(
         Modifier.fillMaxSize().background(Color(0xFF050608)).verticalScroll(rememberScrollState())
             .padding(horizontal = 22.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("‹ Geçmiş", color = Color(0xFFFF4D5E), fontFamily = Sora, fontSize = 14.sp,
+            Text("‹ " + s(Str.TAB_HISTORY), color = Color(0xFFFF4D5E), fontFamily = Sora, fontSize = 14.sp,
                 modifier = Modifier.heightIn(min = 44.dp).clickable(onClick = onBack).padding(vertical = 12.dp, horizontal = 4.dp).weight(1f))
-            Text("Sil", color = Label, fontFamily = Sora, fontSize = 14.sp,
+            Text(s(Str.DELETE), color = Label, fontFamily = Sora, fontSize = 14.sp,
                 modifier = Modifier.heightIn(min = 44.dp).clickable { confirm = true }.padding(12.dp))
         }
         Column {
-            Text(dayFmt.format(Date(d.startMs)).uppercase(Locale("tr")), color = Label, fontFamily = Sora, fontSize = 11.sp, letterSpacing = 2.sp)
+            Text(dayFmt.format(Date(d.startMs)).uppercase(LocalStrings.current.lang.locale), color = Label, fontFamily = Sora, fontSize = 11.sp, letterSpacing = 2.sp)
             Text(
                 "${timeFmt.format(Date(d.startMs))} – ${timeFmt.format(Date(d.endMs))}",
                 color = C.Text, fontFamily = Sora, fontWeight = FontWeight.Light, fontSize = 28.sp,
             )
         }
         val tiles = listOf(
-            Triple("MESAFE", "%.1f".format(LocalUnits.current.distance(d.distanceKm)), LocalUnits.current.distanceUnit),
-            Triple("SÜRE", duration(d.durationSec), ""),
-            Triple("ORT. HIZ", LocalUnits.current.speed(d.avgMovingSpeedKmh)!!.toInt().toString(), LocalUnits.current.speedUnit),
-            Triple("MAKS HIZ", LocalUnits.current.speed(d.maxSpeedKmh)!!.toInt().toString(), LocalUnits.current.speedUnit),
-            Triple("MAKS DEVİR", d.maxRpm.toInt().toString(), "rpm"),
-            Triple("RÖLANTİ", duration(d.idleSec.toLong()), ""),
-            Triple("MAKS SU", LocalUnits.current.temp(d.maxCoolantC)?.toInt()?.toString() ?: "—", LocalUnits.current.tempUnit),
-            Triple("MİN AKÜ", d.minBatteryV?.let { "%.1f".format(it) } ?: "—", "V"),
+            Triple(caps(Str.DISTANCE), "%.1f".format(LocalUnits.current.distance(d.distanceKm)), LocalUnits.current.distanceUnit),
+            Triple(caps(Str.DURATION), duration(d.durationSec), ""),
+            Triple(caps(Str.AVG_SPEED), LocalUnits.current.speed(d.avgMovingSpeedKmh)!!.toInt().toString(), LocalUnits.current.speedUnit),
+            Triple(caps(Str.MAX_SPEED), LocalUnits.current.speed(d.maxSpeedKmh)!!.toInt().toString(), LocalUnits.current.speedUnit),
+            Triple(caps(Str.MAX_RPM), d.maxRpm.toInt().toString(), "rpm"),
+            Triple(caps(Str.IDLE), duration(d.idleSec.toLong()), ""),
+            Triple(caps(Str.MAX_COOLANT), LocalUnits.current.temp(d.maxCoolantC)?.toInt()?.toString() ?: "—", LocalUnits.current.tempUnit),
+            Triple(caps(Str.MIN_BATTERY), d.minBatteryV?.let { "%.1f".format(it) } ?: "—", "V"),
         )
         tiles.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (l, v, u) -> SummaryTile(l, v, if (v == "—") "" else u, Modifier.weight(1f)) }
             }
         }
-        ChartCard("HIZ · ${LocalUnits.current.speedUnit}", d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, Color(0xFFE3001B))
-        ChartCard("DEVİR · rpm", d.samples.map { it.rpm.toFloat() }, C.Text)
-        ChartCard("SU SICAKLIĞI · ${LocalUnits.current.tempUnit}", d.samples.mapNotNull { LocalUnits.current.temp(it.coolantC?.toDouble())?.toFloat() }, Blue)
+        ChartCard("${caps(Str.SPEED)} · ${LocalUnits.current.speedUnit}", d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, Color(0xFFE3001B))
+        ChartCard("${caps(Str.RPM)} · rpm", d.samples.map { it.rpm.toFloat() }, C.Text)
+        ChartCard("${caps(Str.COOLANT_TEMP)} · ${LocalUnits.current.tempUnit}", d.samples.mapNotNull { LocalUnits.current.temp(it.coolantC?.toDouble())?.toFloat() }, Blue)
     }
     if (confirm) {
         AlertDialog(
             onDismissRequest = { confirm = false },
-            title = { Text("Sürüş silinsin mi?") },
-            text = { Text("Bu kayıt kalıcı olarak silinir.") },
-            confirmButton = { TextButton(onClick = { confirm = false; onDelete() }) { Text("Sil", color = Color(0xFFFF4D5E)) } },
-            dismissButton = { TextButton(onClick = { confirm = false }) { Text("Vazgeç") } },
+            title = { Text(s(Str.DELETE_DRIVE_TITLE)) },
+            text = { Text(s(Str.DELETE_DRIVE_BODY)) },
+            confirmButton = { TextButton(onClick = { confirm = false; onDelete() }) { Text(s(Str.DELETE), color = Color(0xFFFF4D5E)) } },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(s(Str.CANCEL)) } },
         )
     }
 }
@@ -208,7 +224,7 @@ private fun ChartCard(title: String, values: List<Float>, color: Color) {
             Text(title, color = Label, fontFamily = Sora, fontSize = 10.sp, letterSpacing = 2.sp, modifier = Modifier.weight(1f))
             if (values.isNotEmpty()) Text("${values.min().toInt()} – ${values.max().toInt()}", color = Label, fontFamily = Sora, fontSize = 11.sp)
         }
-        if (values.size < 2) Text("Veri yok", color = C.Dim, fontFamily = Sora, fontSize = 13.sp)
+        if (values.size < 2) Text(s(Str.NO_DATA), color = C.Dim, fontFamily = Sora, fontSize = 13.sp)
         else Sparkline(values, color, Modifier.fillMaxWidth().height(110.dp), fill = true)
     }
 }

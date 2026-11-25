@@ -36,6 +36,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -55,7 +56,11 @@ import app.obdgolf.ui.DetailsScreen
 import app.obdgolf.ui.FaultScreen
 import app.obdgolf.ui.SplashScreen
 import app.obdgolf.ui.HistoryScreen
+import app.obdgolf.ui.LocalStrings
 import app.obdgolf.ui.LocalUnits
+import app.obdgolf.ui.s
+import app.obdgolf.core.Msg
+import app.obdgolf.core.Str
 import app.obdgolf.ui.ObdTheme
 
 class MainActivity : ComponentActivity() {
@@ -63,7 +68,7 @@ class MainActivity : ComponentActivity() {
 
     /** Device the user tapped while a permission was missing; connected once it is granted. */
     private var pendingDevice: PairedDevice? = null
-    /** True when the dialog was opened by the "İzin ver" button, so a silent refusal opens app settings. */
+    /** True when the dialog was opened by the "Allow" button, so a silent refusal opens app settings. */
     private var fromButton = false
 
     private val askBluetooth =
@@ -99,7 +104,7 @@ class MainActivity : ComponentActivity() {
             } else if (missing.none { shouldShowRequestPermissionRationale(it) }) {
                 openAppSettings()
             } else {
-                vm.setBleStatus("Tarama için izin gerekli.")
+                vm.setBleStatus(Msg.of(Str.SCAN_PERMISSION_NEEDED))
             }
         }
 
@@ -170,9 +175,9 @@ class MainActivity : ComponentActivity() {
     private fun shareLog() {
         val send = Intent(Intent.ACTION_SEND)
             .setType("text/plain")
-            .putExtra(Intent.EXTRA_SUBJECT, "Revora adaptör günlüğü")
+            .putExtra(Intent.EXTRA_SUBJECT, vm.strings()[Str.SHARE_LOG_SUBJECT])
             .putExtra(Intent.EXTRA_TEXT, vm.exportLog())
-        startActivity(Intent.createChooser(send, "Günlüğü paylaş"))
+        startActivity(Intent.createChooser(send, vm.strings()[Str.SHARE_LOG]))
     }
 
     private fun openAppSettings() {
@@ -183,8 +188,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String) {
-    Dashboard("Gösterge"), Details("Veriler"), Faults("Arıza"), History("Geçmiş"), Connect("Bağlantı")
+private enum class Tab(val label: Str) {
+    Dashboard(Str.TAB_DASHBOARD), Details(Str.TAB_DATA), Faults(Str.TAB_FAULTS), History(Str.TAB_HISTORY), Connect(Str.CONNECTION)
 }
 
 /** Where the app lands after connecting. */
@@ -193,19 +198,22 @@ private val homeTab = Tab.Dashboard
 @Composable
 private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit, onScanBle: () -> Unit, onShareLog: () -> Unit) {
     val link by vm.link.collectAsState()
+    val language by vm.language.collectAsState()
     var splash by rememberSaveable { mutableStateOf(true) }
 
+    CompositionLocalProvider(LocalStrings provides remember(language) { vm.strings(language) }) {
     Box(Modifier.fillMaxSize().background(C.Bg)) {
         MainContent(vm, onConnect, onGrantPermission, onScanBle, onShareLog)
         // Loading screen on top while Bluetooth and auto-connect start underneath.
         AnimatedVisibility(visible = splash, exit = fadeOut(tween(350))) {
             val status = when (val l = link) {
-                is LinkState.Connecting -> if (l.name == "Demo") "Demo modu başlatılıyor…" else "${l.name} bağlanıyor…"
-                is LinkState.Connected -> if (l.name == "Demo") "Demo modu hazır" else "${l.name} bağlandı"
-                else -> "Hazırlanıyor…"
+                is LinkState.Connecting -> if (l.name == DEMO) s(Str.SPLASH_DEMO_STARTING) else s(Str.SPLASH_CONNECTING, l.name)
+                is LinkState.Connected -> if (l.name == DEMO) s(Str.SPLASH_DEMO_READY) else s(Str.SPLASH_CONNECTED, l.name)
+                else -> s(Str.SPLASH_PREPARING)
             }
             SplashScreen(status) { splash = false }
         }
+    }
     }
 }
 
@@ -225,6 +233,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val bleScanning by vm.bleScanning.collectAsState()
     val bleStatus by vm.bleStatus.collectAsState()
     val units by vm.units.collectAsState()
+    val language by vm.language.collectAsState()
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -270,6 +279,8 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                         onDemo = { vm.setDemo(it); if (it) tab = homeTab },
                         units = units,
                         onUnits = vm::setUnits,
+                        language = language,
+                        onLanguage = vm::setLanguage,
                     )
                 }
             }
@@ -287,7 +298,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 1.dp),
                         colors = ButtonDefaults.textButtonColors(containerColor = if (selected) C.Red else Color.Transparent),
                     ) {
-                        Text(t.label, color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = 11.sp, maxLines = 1,
+                        Text(s(t.label), color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = 11.sp, maxLines = 1,
                             softWrap = false, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
                     }
                 }

@@ -21,6 +21,11 @@ import app.obdgolf.core.ElmIo
 import app.obdgolf.core.ElmLog
 import app.obdgolf.core.LoggingElmIo
 import app.obdgolf.core.FaultReport
+import app.obdgolf.core.Lang
+import app.obdgolf.core.Msg
+import app.obdgolf.core.Str
+import app.obdgolf.core.Strings
+import app.obdgolf.core.toMsg
 import app.obdgolf.core.ObdSession
 import app.obdgolf.core.PressureUnit
 import app.obdgolf.core.SpeedUnit
@@ -38,18 +43,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/** Link name of the built-in demo adapter (shown as is in every language). */
+const val DEMO = "Demo"
+
 sealed interface LinkState {
     data object Disconnected : LinkState
     data class Connecting(val name: String) : LinkState
     data class Connected(val name: String, val adapterVersion: String?) : LinkState
-    data class Failed(val message: String) : LinkState
+    data class Failed(val message: Msg) : LinkState
 }
 
 sealed interface FaultState {
     data object Idle : FaultState
-    data class Busy(val text: String) : FaultState
+    data class Busy(val text: Msg) : FaultState
     data class Ready(val report: FaultReport, val cleared: Boolean = false) : FaultState
-    data class Error(val message: String) : FaultState
+    data class Error(val message: Msg) : FaultState
 }
 
 class ObdViewModel(app: Application) : AndroidViewModel(app) {
@@ -88,9 +96,21 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
     private val _bleScanning = MutableStateFlow(false)
     val bleScanning: StateFlow<Boolean> = _bleScanning.asStateFlow()
     /** Last scan problem or result note shown under the BLE list, null when there is nothing to say. */
-    private val _bleStatus = MutableStateFlow<String?>(null)
-    val bleStatus: StateFlow<String?> = _bleStatus.asStateFlow()
+    private val _bleStatus = MutableStateFlow<Msg?>(null)
+    val bleStatus: StateFlow<Msg?> = _bleStatus.asStateFlow()
     private var scanJob: Job? = null
+
+    /** Chosen language, or null to follow the phone. */
+    private val _language = MutableStateFlow(Lang.fromCode(prefs.getString("lang", null)))
+    val language: StateFlow<Lang?> = _language.asStateFlow()
+
+    /** Texts in the chosen language, or the phone's when it is one we have (English otherwise). */
+    fun strings(lang: Lang? = _language.value): Strings = Strings(lang ?: Lang.forLocale(Locale.getDefault()))
+
+    fun setLanguage(lang: Lang?) {
+        _language.value = lang
+        prefs.edit().putString("lang", lang?.code).apply()
+    }
 
     /** Display units; first launch picks them from the phone's country (mph/°F in the US, mph in the UK). */
     private val _units = MutableStateFlow(loadUnits())
@@ -143,20 +163,20 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
     val faults: StateFlow<FaultState> = _faults.asStateFlow()
 
     private fun connectedSession(): ObdSession? = session.takeIf { _link.value is LinkState.Connected }.also {
-        if (it == null) _faults.value = FaultState.Error("Önce adaptöre bağlan (ya da Bağlantı sekmesinden demo modunu aç).")
+        if (it == null) _faults.value = FaultState.Error(Msg.of(Str.FAULT_CONNECT_FIRST))
     }
 
     fun readFaults() {
         val s = connectedSession() ?: return
         if (_faults.value is FaultState.Busy) return
         viewModelScope.launch {
-            _faults.value = FaultState.Busy("Arıza kodları okunuyor…")
+            _faults.value = FaultState.Busy(Msg.of(Str.READING_CODES))
             _faults.value = try {
                 FaultState.Ready(s.readFaults())
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                FaultState.Error("Okunamadı: ${e.message ?: "bağlantı hatası"}")
+                FaultState.Error(Msg.of(Str.READ_FAILED, e.toMsg()))
             }
         }
     }
@@ -165,15 +185,15 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         val s = connectedSession() ?: return
         if (_faults.value is FaultState.Busy) return
         viewModelScope.launch {
-            _faults.value = FaultState.Busy("Kodlar siliniyor…")
+            _faults.value = FaultState.Busy(Msg.of(Str.CLEARING_CODES))
             _faults.value = try {
                 val ok = s.clearFaults()
-                if (!ok) FaultState.Error("Araba silme komutunu onaylamadı. Kontak açık, motor kapalı olmalı.")
+                if (!ok) FaultState.Error(Msg.of(Str.CLEAR_NOT_CONFIRMED))
                 else FaultState.Ready(s.readFaults(), cleared = true)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                FaultState.Error("Silinemedi: ${e.message ?: "bağlantı hatası"}")
+                FaultState.Error(Msg.of(Str.CLEAR_FAILED, e.toMsg()))
             }
         }
     }
@@ -188,7 +208,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
             _demo.value -> startDemo()
             _autoConnect.value -> prefs.getString("last", null)?.let { last ->
                 if (last.startsWith(BLE_PREFIX)) {
-                    connectBle(BleDevice(prefs.getString("ble_name", null) ?: "BLE adaptör", last.removePrefix(BLE_PREFIX)))
+                    connectBle(BleDevice(prefs.getString("ble_name", null) ?: "BLE adapter", last.removePrefix(BLE_PREFIX)))
                 } else if (last.startsWith(WIFI_PREFIX)) {
                     WifiAddress.parse(last.removePrefix(WIFI_PREFIX))?.let { connectWifi(it) }
                 } else {
@@ -199,14 +219,14 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private val _permissionMissing = MutableStateFlow(false)
-    /** True while a "Nearby devices" permission is missing; the Connect screen then shows an "İzin ver" button. */
+    /** True while a "Nearby devices" permission is missing; the Connect screen then shows an "Allow" button. */
     val permissionMissing: StateFlow<Boolean> = _permissionMissing.asStateFlow()
 
     /** The activity re-checks permissions on start, on resume and after the system dialog. */
     fun setPermissionMissing(missing: Boolean) {
         _permissionMissing.value = missing
         if (missing && job == null) {
-            _link.value = LinkState.Failed("Bluetooth izni verilmedi. Aşağıdaki \"İzin ver\" düğmesine bas.")
+            _link.value = LinkState.Failed(Msg.of(Str.BT_PERMISSION_DENIED, Str.ALLOW))
         } else if (!missing && _link.value is LinkState.Failed && job == null) {
             _link.value = LinkState.Disconnected
         }
@@ -236,19 +256,19 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 kotlinx.coroutines.withTimeoutOrNull(8_000) { ble.scan().collect { _bleDevices.value = it } }
                 if (_bleDevices.value.isEmpty()) {
-                    _bleStatus.value = "BLE cihaz bulunamadı. Adaptör takılı ve kontak açık mı?"
+                    _bleStatus.value = Msg.of(Str.NO_BLE_FOUND)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _bleStatus.value = e.message ?: "BLE taraması başarısız"
+                _bleStatus.value = e.toMsg(Str.BLE_SCAN_FAILED)
             } finally {
                 _bleScanning.value = false
             }
         }
     }
 
-    fun setBleStatus(text: String?) { _bleStatus.value = text }
+    fun setBleStatus(text: Msg?) { _bleStatus.value = text }
 
     fun connectBle(device: BleDevice) {
         scanJob?.cancel()
@@ -263,7 +283,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         return log.export(listOf(
             "Revora $version",
             "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}), ${Build.MANUFACTURER} ${Build.MODEL}",
-            "Bağlantı: ${_link.value}",
+            "Link: ${_link.value}",
         ))
     }
 
@@ -291,23 +311,23 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         _faults.value = FaultState.Idle
     }
 
-    private fun startDemo() = start("Demo") { DemoElmIo() }
+    private fun startDemo() = start(DEMO) { DemoElmIo() }
 
     private fun start(name: String, open: suspend () -> ElmIo) {
         disconnect()
-        recorder = DriveRecorder(demo = name == "Demo")
+        recorder = DriveRecorder(demo = name == DEMO)
         job = viewModelScope.launch {
             var attempt = 0
             while (true) {
                 _link.value = LinkState.Connecting(name)
                 try {
-                    log.note("Bağlanıyor: $name")
+                    log.note("Connecting: $name")
                     val s = ObdSession(LoggingElmIo(open(), log)).also { session = it }
                     s.initialize()
-                    log.note("Bağlandı: ${s.adapter.label}; desteklenen PID'ler: " +
+                    log.note("Connected: ${s.adapter.label}; supported PIDs: " +
                         s.supported.all.joinToString(" ") { "%02X".format(it) })
                     _vehicle.value = s.vehicle
-                    s.vehicle?.let { log.note("Araç: ${it.label}, VIN ${ElmLog.maskVin(it.vin)}") }
+                    s.vehicle?.let { log.note("Vehicle: ${it.label}, VIN ${ElmLog.maskVin(it.vin)}") }
                     _link.value = LinkState.Connected(name, s.adapter.label)
                     attempt = 0
                     s.poll().collect {
@@ -323,7 +343,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     saveDrive(recorder?.finish())
                     recorder = null
                     _permissionMissing.value = !hasBluetoothPermissions()
-                    _link.value = LinkState.Failed(e.message ?: "Bluetooth izni yok")
+                    _link.value = LinkState.Failed(e.toMsg(Str.NO_BT_PERMISSION))
                     job = null
                     return@launch
                 } catch (e: Exception) {
@@ -331,7 +351,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     session?.close()
                     session = null
                     saveDrive(recorder?.finish())
-                    _link.value = LinkState.Failed(e.message ?: "Bağlantı hatası")
+                    _link.value = LinkState.Failed(e.toMsg())
                     // Car off or out of range: keep retrying quietly, slower each time.
                     attempt++
                     delay((2_000L * attempt).coerceAtMost(15_000L))

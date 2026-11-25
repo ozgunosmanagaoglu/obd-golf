@@ -47,7 +47,7 @@ class StreamTransport(
             if (n > 0) {
                 val buf = ByteArray(n)
                 val got = input.read(buf)
-                if (got < 0) throw IOException("Adaptör bağlantıyı kapattı")
+                if (got < 0) throw LocalizedIOException(Str.ADAPTER_CLOSED)
                 return@withContext buf.copyOf(got)
             }
             if (System.currentTimeMillis() >= deadline) return@withContext ByteArray(0)
