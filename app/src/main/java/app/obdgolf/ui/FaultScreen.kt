@@ -38,6 +38,7 @@ import app.obdgolf.FaultState
 import app.obdgolf.LinkState
 import app.obdgolf.core.Dtc
 import app.obdgolf.core.DtcKind
+import app.obdgolf.core.DtcSeverity
 import app.obdgolf.core.FaultReport
 import app.obdgolf.core.FreezeFrame
 import app.obdgolf.core.Str
@@ -157,6 +158,7 @@ private fun Codes(report: FaultReport) {
         return
     }
     SectionLabel(s(Str.CODES_FOUND, report.codes.size))
+    DtcSeverity.worst(report.codes)?.let { SeveritySummary(it) }
     Card {
         report.codes.forEachIndexed { i, dtc ->
             if (i > 0) HorizontalDivider(color = C.Divider)
@@ -183,7 +185,43 @@ private fun CodeRow(dtc: Dtc) {
             )
         }
         Text(LocalStrings.current.describe(dtc), color = C.Text, fontSize = 14.sp)
+        val sev = DtcSeverity.of(dtc.code)
+        SeverityChip(sev)
+        Text(s(sev.advice), color = C.Muted, fontSize = 13.sp, lineHeight = 18.sp)
+        if (DtcSeverity.isMisfire(dtc.code)) Text(s(Str.DTC_ADVICE_MISFIRE), color = C.Amber, fontSize = 13.sp, lineHeight = 18.sp)
         if (dtc.manufacturerSpecific) Text(s(Str.MANUFACTURER_HINT), color = C.Dim, fontSize = 12.sp)
+    }
+}
+
+private fun severityColor(sev: DtcSeverity) = when (sev) {
+    DtcSeverity.STOP -> C.Alarm
+    DtcSeverity.SOON -> C.Amber
+    DtcSeverity.LATER -> C.Muted
+}
+
+/** Colour plus words, so the urgency reads without relying on colour alone. */
+@Composable
+private fun SeverityChip(sev: DtcSeverity) {
+    val color = severityColor(sev)
+    Text(
+        s(sev.label), color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = 0.15f))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    )
+}
+
+/** The most urgent code first, with the disclaimer that this is a guide and not a diagnosis. */
+@Composable
+private fun SeveritySummary(worst: DtcSeverity) {
+    val color = severityColor(worst)
+    Column(
+        Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(16.dp)).background(color.copy(alpha = 0.12f))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(s(Str.DTC_SEV_SUMMARY, s(worst.label)), color = color, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(s(worst.advice), color = C.Text, fontSize = 14.sp, lineHeight = 19.sp)
+        Text(s(Str.DTC_SEV_DISCLAIMER), color = C.Dim, fontSize = 12.sp)
     }
 }
 
