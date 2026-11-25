@@ -357,6 +357,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
             while (true) {
                 _link.value = LinkState.Connecting(name)
                 try {
+                    log.beginAttempt()
                     log.note("Connecting: $name")
                     val s = ObdSession(LoggingElmIo(open(), log)).also { session = it }
                     s.initialize()
@@ -366,6 +367,9 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
                     _measuring.value = s.supportsMeasuringBlocks
                     if (s.brandValues.isNotEmpty()) log.note("Maker values: " + s.brandValues.joinToString(" "))
                     s.vehicle?.let { log.note("Vehicle: ${it.label}, VIN ${ElmLog.maskVin(it.vin)}") }
+                    log.note("Live requests to ${s.homeHeader}" + (if (s.singleReply) ", one reply each" else "") +
+                        "; VW measuring blocks " + (if (s.supportsMeasuringBlocks) "available" else "not available"))
+                    log.connected()
                     _link.value = LinkState.Connected(name, s.adapter.label)
                     attempt = 0
                     s.poll().collect {

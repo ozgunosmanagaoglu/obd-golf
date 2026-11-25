@@ -84,7 +84,7 @@ class Tp20Test {
         assertEquals(800.0, b.values[2].value)
         // Back in normal OBD mode afterwards.
         assertFalse(io.sim.raw)
-        assertEquals("7DF", io.sim.header)
+        assertEquals("7E0", io.sim.header) // back on the engine for live values
         assertTrue("A8" in io.sent)
     }
 

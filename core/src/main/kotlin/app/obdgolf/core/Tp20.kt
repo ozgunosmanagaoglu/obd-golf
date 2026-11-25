@@ -137,7 +137,7 @@ enum class VagUnit(val address: Int, val label: Str) {
  * starts a KWP session, reads, disconnects and puts the adapter back into normal OBD mode.
  * The caller holds the adapter lock for the whole time.
  */
-internal class Tp20Channel(private val io: ElmIo) {
+internal class Tp20Channel(private val io: ElmIo, private val homeHeader: String = "7DF") {
     private suspend fun send(cmd: String, timeoutMs: Long = 1_000): String =
         try { io.exchange(cmd, timeoutMs) } catch (_: ElmTimeoutException) { "" }
 
@@ -180,7 +180,7 @@ internal class Tp20Channel(private val io: ElmIo) {
             return MeasuringBlocks.parse(unit, group, reply)
         } finally {
             send(Tp20.DISCONNECT, 300)
-            for (c in listOf("ATCRA", "ATSH7DF", "ATST32", "ATCAF1", "ATH0")) send(c)
+            for (c in listOf("ATCRA", "ATSH$homeHeader", "ATST32", "ATCAF1", "ATH0")) send(c)
         }
     }
 }
