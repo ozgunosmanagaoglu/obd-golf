@@ -27,6 +27,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,6 +82,7 @@ class MainActivity : ComponentActivity() {
             vm.setPermissionMissing(missing.isNotEmpty())
             vm.refreshDevices()
             if (missing.isEmpty()) {
+                askNotificationsOnce()
                 pendingDevice?.let { vm.connect(it) } ?: vm.onReady()
             } else if (fromButton && missing.none { shouldShowRequestPermissionRationale(it) }) {
                 // Android (or MIUI) no longer shows the dialog: only the settings page can fix it.
@@ -108,6 +114,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    // Android 13+: the "Connected" notification of the background service needs this. Asked once, after
+    // Bluetooth, never again if declined (the service still runs, only its notification stays hidden).
+    private val askNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
+    private fun askNotificationsOnce() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val prefs = getSharedPreferences("obd", MODE_PRIVATE)
+        if (prefs.getBoolean("notif_asked", false)) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        prefs.edit().putBoolean("notif_asked", true).apply()
+        askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
     private fun scanBleWithPermission() {
         val missing = missingScanPermissions()
         if (missing.isEmpty()) vm.scanBle() else askScan.launch(missing.toTypedArray())
@@ -121,6 +141,7 @@ class MainActivity : ComponentActivity() {
         if (missing.isNotEmpty()) {
             askBluetooth.launch(missing.toTypedArray())
         } else {
+            askNotificationsOnce()
             vm.onReady()
         }
 
@@ -189,12 +210,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: Str) {
+internal enum class Tab(val label: Str) {
     Dashboard(Str.TAB_DASHBOARD), Details(Str.TAB_DATA), Faults(Str.TAB_FAULTS), History(Str.TAB_HISTORY), Connect(Str.CONNECTION)
 }
 
 /** Where the app lands after connecting. */
-private val homeTab = Tab.Dashboard
+internal val homeTab = Tab.Dashboard
 
 @Composable
 private fun App(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onGrantPermission: () -> Unit, onScanBle: () -> Unit, onShareLog: () -> Unit) {
@@ -247,74 +268,107 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
             CarScreen(data, link) { tab = Tab.Connect }
             return@Box
         }
-        Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f)) {
-                when (tab) {
-                    Tab.Dashboard -> DashboardScreen(data, link) { tab = Tab.Connect }
-                    Tab.Details -> DetailsScreen(
-                        data, vehicle, (link as? LinkState.Connected)?.adapterVersion,
-                        measuring = measuring && link is LinkState.Connected,
-                        block = block,
-                        onReadBlock = vm::readBlock,
-                    )
-                    Tab.Faults -> FaultScreen(
-                        state = faults,
-                        link = link,
-                        onRead = vm::readFaults,
-                        onClear = vm::clearFaults,
-                        onLinkClick = { tab = Tab.Connect },
-                    )
-                    Tab.History -> HistoryScreen(drives, onDelete = vm::deleteDrive)
-                    Tab.Connect -> ConnectScreen(
-                        link = link,
-                        bluetoothReady = vm.bluetoothReady,
-                        devices = devices,
-                        autoConnect = auto,
-                        demo = demo,
-                        permissionMissing = permissionMissing,
-                        onGrantPermission = onGrantPermission,
-                        onConnect = { onConnect(it); tab = homeTab },
-                        wifiAddress = wifiAddress,
-                        onConnectWifi = { vm.connectWifi(it); tab = homeTab },
-                        bleDevices = bleDevices,
-                        bleScanning = bleScanning,
-                        bleStatus = bleStatus,
-                        onScanBle = onScanBle,
-                        onConnectBle = { vm.connectBle(it); tab = homeTab },
-                        onShareLog = onShareLog,
-                        onDisconnect = vm::disconnect,
-                        onRefresh = vm::refreshDevices,
-                        onAutoConnect = vm::setAutoConnect,
-                        onDemo = { vm.setDemo(it); if (it) tab = homeTab },
-                        units = units,
-                        onUnits = vm::setUnits,
-                        language = language,
-                        onLanguage = vm::setLanguage,
-                        batteryUnrestricted = batteryUnrestricted,
-                        onOpenBattery = vm::openBatterySettings,
-                    )
-                }
-            }
-            Row(
-                Modifier.padding(horizontal = 10.dp, vertical = 10.dp).fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp)).background(C.Card).padding(5.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Tab.entries.forEach { t ->
-                    val selected = t == tab
-                    TextButton(
-                        onClick = { tab = t },
-                        modifier = Modifier.weight(1f).heightIn(min = 44.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 1.dp),
-                        colors = ButtonDefaults.textButtonColors(containerColor = if (selected) C.Red else Color.Transparent),
-                    ) {
-                        Text(s(t.label), color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = 11.sp, maxLines = 1,
-                            softWrap = false, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
-                    }
-                }
+        val screen: @Composable () -> Unit = {
+            when (tab) {
+                Tab.Dashboard -> DashboardScreen(data, link) { tab = Tab.Connect }
+                Tab.Details -> DetailsScreen(
+                    data, vehicle, (link as? LinkState.Connected)?.adapterVersion,
+                    measuring = measuring && link is LinkState.Connected,
+                    block = block,
+                    onReadBlock = vm::readBlock,
+                )
+                Tab.Faults -> FaultScreen(
+                    state = faults,
+                    link = link,
+                    onRead = vm::readFaults,
+                    onClear = vm::clearFaults,
+                    onLinkClick = { tab = Tab.Connect },
+                )
+                Tab.History -> HistoryScreen(drives, onDelete = vm::deleteDrive)
+                Tab.Connect -> ConnectScreen(
+                    link = link,
+                    bluetoothReady = vm.bluetoothReady,
+                    devices = devices,
+                    autoConnect = auto,
+                    demo = demo,
+                    permissionMissing = permissionMissing,
+                    onGrantPermission = onGrantPermission,
+                    onConnect = { onConnect(it); tab = homeTab },
+                    wifiAddress = wifiAddress,
+                    onConnectWifi = { vm.connectWifi(it); tab = homeTab },
+                    bleDevices = bleDevices,
+                    bleScanning = bleScanning,
+                    bleStatus = bleStatus,
+                    onScanBle = onScanBle,
+                    onConnectBle = { vm.connectBle(it); tab = homeTab },
+                    onShareLog = onShareLog,
+                    onDisconnect = vm::disconnect,
+                    onRefresh = vm::refreshDevices,
+                    onAutoConnect = vm::setAutoConnect,
+                    onDemo = { vm.setDemo(it); if (it) tab = homeTab },
+                    units = units,
+                    onUnits = vm::setUnits,
+                    language = language,
+                    onLanguage = vm::setLanguage,
+                    batteryUnrestricted = batteryUnrestricted,
+                    onOpenBattery = vm::openBatterySettings,
+                )
             }
         }
+        AppFrame(tab, { tab = it }, screen)
     }
+    }
+}
+
+/**
+ * The tabs around a screen. Phones in portrait get a bottom bar; from [WIDE_DP] (tablets, foldables,
+ * landscape phones) the tabs move to a side bar and the content is kept to a readable width.
+ */
+@Composable
+internal fun AppFrame(tab: Tab, onSelect: (Tab) -> Unit, screen: @Composable () -> Unit) {
+    if (LocalConfiguration.current.screenWidthDp >= WIDE_DP) {
+        Row(Modifier.fillMaxSize()) {
+            TabBar(tab, vertical = true, onSelect = onSelect)
+            Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                Box(Modifier.widthIn(max = MAX_CONTENT_DP.dp).fillMaxSize()) { screen() }
+            }
+        }
+    } else {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f)) { screen() }
+            TabBar(tab, vertical = false, onSelect = onSelect)
+        }
+    }
+}
+
+/** Width from which the tabs move to a side bar (Material's "medium" window class). */
+private const val WIDE_DP = 600
+/** Wider than this, text lines and cards get hard to read on a tablet. */
+private const val MAX_CONTENT_DP = 760
+
+@Composable
+private fun TabBar(tab: Tab, vertical: Boolean, onSelect: (Tab) -> Unit) {
+    val bar = Modifier.padding(10.dp).clip(RoundedCornerShape(22.dp)).background(C.Card).padding(5.dp)
+    val item: @Composable (Tab, Modifier) -> Unit = { t, m ->
+        val selected = t == tab
+        TextButton(
+            onClick = { onSelect(t) },
+            modifier = m.heightIn(min = 44.dp),
+            shape = RoundedCornerShape(16.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = if (vertical) 12.dp else 1.dp),
+            colors = ButtonDefaults.textButtonColors(containerColor = if (selected) C.Red else Color.Transparent),
+        ) {
+            Text(s(t.label), color = if (selected) Color.White else Color(0xFFD6D7DA), fontSize = if (vertical) 13.sp else 11.sp,
+                maxLines = 1, softWrap = false, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+        }
+    }
+    if (vertical) {
+        Column(bar.fillMaxHeight().width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)) {
+            Tab.entries.forEach { item(it, Modifier.fillMaxWidth()) }
+        }
+    } else {
+        Row(bar.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Tab.entries.forEach { item(it, Modifier.weight(1f)) }
+        }
     }
 }
