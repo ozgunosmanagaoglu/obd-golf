@@ -227,7 +227,8 @@ class ObdSession(
     }
 
     private suspend fun readFaultsHere(nowMs: Long): FaultReport {
-        val mil = DtcParser.parseMil(ask("0101"))
+        val status = ask("0101")
+        val mil = DtcParser.parseMil(status)
         val codes = mutableListOf<Dtc>()
         for ((mode, kind) in listOf("03" to DtcKind.STORED, "07" to DtcKind.PENDING, "0A" to DtcKind.PERMANENT)) {
             val raw = runCatching { ask(mode, timeoutMs = 5_000) }.getOrDefault("")
@@ -242,7 +243,7 @@ class ObdSession(
                 loadPct = f(Pid.ENGINE_LOAD), throttlePct = f(Pid.THROTTLE), intakeC = f(Pid.INTAKE_TEMP),
             )
         }
-        return FaultReport(mil, codes, freeze, nowMs)
+        return FaultReport(mil, codes, freeze, nowMs, Readiness.parse(status))
     }
 
     /** Mode 04: clears codes and freeze frame and resets the readiness tests. True if the car confirmed. */

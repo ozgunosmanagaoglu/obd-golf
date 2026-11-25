@@ -115,7 +115,7 @@ class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : Elm
             "0149" -> "4149" + hex1(((if (gas) 0.8 else 0.16) * 255).roundToInt()) + "\r"
             "014A" -> "414A" + hex1(((if (gas) 0.4 else 0.08) * 255).roundToInt()) + "\r"
             "014C" -> "414C" + hex1(((if (gas) 0.7 else 0.03) * 255).roundToInt()) + "\r"
-            "0101" -> if (faults) "41 01 83 07 64 00\r" else "4101000764 00\r"
+            "0101" -> if (faults) "41 01 83 07 64 04\r" else "4101000764 00\r"
             // Engine answers in two CAN frames, the DSG answers too (no codes).
             "03" -> if (faults) "008\r0:43 03 02 99 03 01\r1:20 15 00 00 00 00 00\r4300\r" else "4300\r4300\r"
             "07" -> if (faults) "47010171\r" else "4700\r"

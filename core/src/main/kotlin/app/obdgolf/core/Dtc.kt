@@ -30,6 +30,8 @@ data class FaultReport(
     val codes: List<Dtc>,
     val freezeFrame: FreezeFrame?,
     val readAtMs: Long,
+    /** Emission self-tests from the same 0101 reply; null when the car did not report them. */
+    val readiness: Readiness? = null,
 )
 
 object DtcParser {
