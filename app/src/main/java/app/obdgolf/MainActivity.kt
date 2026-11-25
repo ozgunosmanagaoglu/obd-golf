@@ -82,6 +82,7 @@ class MainActivity : ComponentActivity() {
             vm.setPermissionMissing(missing.isNotEmpty())
             vm.refreshDevices()
             if (missing.isEmpty()) {
+                askNotificationsOnce()
                 pendingDevice?.let { vm.connect(it) } ?: vm.onReady()
             } else if (fromButton && missing.none { shouldShowRequestPermissionRationale(it) }) {
                 // Android (or MIUI) no longer shows the dialog: only the settings page can fix it.
@@ -113,6 +114,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    // Android 13+: the "Connected" notification of the background service needs this. Asked once, after
+    // Bluetooth, never again if declined (the service still runs, only its notification stays hidden).
+    private val askNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
+    private fun askNotificationsOnce() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val prefs = getSharedPreferences("obd", MODE_PRIVATE)
+        if (prefs.getBoolean("notif_asked", false)) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        prefs.edit().putBoolean("notif_asked", true).apply()
+        askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
     private fun scanBleWithPermission() {
         val missing = missingScanPermissions()
         if (missing.isEmpty()) vm.scanBle() else askScan.launch(missing.toTypedArray())
@@ -126,6 +141,7 @@ class MainActivity : ComponentActivity() {
         if (missing.isNotEmpty()) {
             askBluetooth.launch(missing.toTypedArray())
         } else {
+            askNotificationsOnce()
             vm.onReady()
         }
 
