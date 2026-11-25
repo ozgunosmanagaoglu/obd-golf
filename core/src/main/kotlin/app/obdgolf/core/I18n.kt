@@ -10,7 +10,17 @@ import java.util.Locale
  */
 enum class Lang(val code: String, val nativeName: String, internal val table: Map<Str, String>) {
     EN("en", "English", emptyMap()),
-    TR("tr", "Türkçe", TR_STRINGS);
+    TR("tr", "Türkçe", TR_STRINGS),
+    DE("de", "Deutsch", DE_STRINGS),
+    FR("fr", "Français", FR_STRINGS),
+    ES("es", "Español", ES_STRINGS),
+    IT("it", "Italiano", IT_STRINGS),
+    PT("pt", "Português", PT_STRINGS),
+    NL("nl", "Nederlands", NL_STRINGS),
+    PL("pl", "Polski", PL_STRINGS),
+    CS("cs", "Čeština", CS_STRINGS),
+    RU("ru", "Русский", RU_STRINGS),
+    UK("uk", "Українська", UK_STRINGS);
 
     val locale: Locale get() = Locale.forLanguageTag(code)
 

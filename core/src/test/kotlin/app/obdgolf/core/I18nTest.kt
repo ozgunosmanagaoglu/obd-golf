@@ -39,6 +39,18 @@ class I18nTest {
         assertEquals(Lang.EN, Lang.forLocale(Locale.US))
         assertEquals(Lang.EN, Lang.forLocale(Locale("xx")))
         assertEquals(Lang.TR, Lang.fromCode("tr-TR"))
+        assertEquals(Lang.PT, Lang.forLocale(Locale("pt", "BR")))
+        assertEquals(Lang.UK, Lang.forLocale(Locale("uk", "UA")))
+    }
+
+    @Test fun noTranslationIsBlankOrUntrimmed() {
+        for (lang in Lang.entries) for ((key, text) in lang.table) {
+            assertTrue(text.isNotBlank() && text == text.trim(), "${lang.code} $key")
+        }
+    }
+
+    @Test fun languageCodesAreUnique() {
+        assertEquals(Lang.entries.size, Lang.entries.map { it.code }.toSet().size)
     }
 
     @Test fun formatsArgumentsAndNestedMessages() {
