@@ -33,6 +33,8 @@ Bağlanınca uygulama arabanın desteklediği PID listesini (0100, 0120, 0140…
 
 **Marka verileri (şimdilik sadece VW grubu: VW, Audi, Škoda, SEAT, Cupra, Porsche).** VIN'den marka VW grubu çıkarsa ve bağlantı 11 bit CAN ise, uygulama bağlanırken üreticiye özel değerleri bir kez dener (UDS servis 22, `ATSH7E0` motor, `ATSH7E1` şanzıman, sonra `ATSH7DF`'ye geri döner). Sadece mantıklı aralıkta cevap gelen değerler **Veriler** sekmesinde "Üretici verileri" başlığı altında gösterilir. Şu an: motor yağı sıcaklığı (`22 11BE`) ve şanzıman yağı sıcaklığı (`22 2104`). Bunlar MQB (yaklaşık 2013 sonrası) araçlar için; Golf Mk6 gibi eski PQ35 araçlar çoğunlukla cevap vermez, onlar için VW TP2.0 ölçüm blokları ayrı bir adımda gelecek. Profiller `core/BrandProfile.kt` içinde veri olarak durur.
 
+**VW ölçüm blokları (eski VW grubu araçlar, yaklaşık 2004–2013, ör. Golf Mk6).** Araç VW grubundansa ve bağlantı CAN 11 bit 500k ise **Veriler** sekmesinde bir kart çıkar: beyin (Motor 01, Şanzıman 02, Klima 08, Gösterge 17) ve grup numarası seçilip **Oku**'ya basılır. Uygulama VW TP2.0 kanalını açar (`ATCAF0`, `ATH1`, 0x200'e kanal isteği), KWP2000 oturumu başlatır (`10 89`), bloğu okur (`21 GG`), kanalı kapatır (`A8`) ve adaptörü normal OBD moduna geri alır. Her değer kendi tip baytıyla birimini söyler; bilinmeyen tipler ham bayt olarak gösterilir. Okuma sırasında canlı değerler bir an durur. Kod `core/Tp20.kt`, demo ve testler için sahte araç `core/Tp20Sim.kt`.
+
 Birimler **Bağlantı → Birimler** bölümünden seçilir: km/h·km ya da mph·mil, °C ya da °F, kPa, bar ya da psi. İlk açılışta telefonun ülkesine göre seçilir (ABD: mph, °F, psi; İngiltere: mph, °C, psi). Uygulama içinde her şey metrik tutulur, sadece gösterim çevrilir.
 
 ## Diller

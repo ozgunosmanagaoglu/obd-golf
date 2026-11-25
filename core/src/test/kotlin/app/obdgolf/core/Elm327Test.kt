@@ -178,7 +178,7 @@ class Elm327Test {
         assertEquals(Str.VEHICLE_LINK_LOST, ((e as LocalizedIOException).msg as Msg.Key).key)
     }
 
-    @Test fun demoAdapterLabel() = runBlocking {
+    @Test fun demoAdapterLabel(): Unit = runBlocking {
         val s = ObdSession(DemoElmIo()).also { it.initialize() }
         assertEquals("ELM327 v2.3 · CAN 11 bit 500k", s.adapter.label)
         assertNotNull(s.poll().take(1).toList().last().ambientC)

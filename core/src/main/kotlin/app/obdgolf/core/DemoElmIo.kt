@@ -20,6 +20,23 @@ class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : Elm
     private var rpm = 800.0
     private var header = "7DF"
 
+    // Older VW cars: engine, DSG and climate measuring blocks over TP2.0.
+    private val tp20 = Tp20Sim(setOf(0x01, 0x02, 0x08)) { unit, group -> demoBlock(unit, group) }
+
+    private fun demoBlock(unit: Int, group: Int): IntArray? {
+        val t = (clock() - start) / 1000.0
+        val warm = min(90.0, 40 + t * 2)
+        return when (unit to group) {
+            // rpm (0.2·a·b), coolant (a·(b−100)·0.1), lambda control (a·(b−128)/128 %), status bits
+            0x01 to 1 -> intArrayOf(0x01, 0xC8, (rpm / 40).roundToInt().coerceIn(0, 255), 0x05, 0x0A, (warm + 100).roundToInt(), 0x14, 0x64, 0x83, 0x10, 0x00, 0x24)
+            // DSG oil temperature (b − a)
+            0x02 to 11 -> intArrayOf(0x1A, 0x00, min(80.0, 22 + t).roundToInt(), 0x08, 0x0A, 0x00, 0x08, 0x0A, 0x00, 0x08, 0x0A, 0x00)
+            // Climate: outside temperature, then the fan
+            0x08 to 1 -> intArrayOf(0x05, 0x0A, 106, 0x21, 0x64, 45, 0x08, 0x0A, 0x00, 0x08, 0x0A, 0x00)
+            else -> null
+        }
+    }
+
     override suspend fun exchange(command: String, timeoutMs: Long): String {
         delay(15)
         step()
@@ -27,9 +44,9 @@ class DemoElmIo(private val clock: () -> Long = System::currentTimeMillis) : Elm
         val f = (rpm - 800) / 5600
         val speed = max(0.0, f) * 140
         val coolant = min(90.0, 40 + t * 2)
-        if (command.startsWith("ATSH")) {
-            header = command.removePrefix("ATSH")
-            return "OK\r"
+        tp20.exchange(command)?.let { reply ->
+            if (command.startsWith("ATSH")) header = command.removePrefix("ATSH")
+            return reply
         }
         return when (command) {
             // VW group (MQB) extras: engine oil and DSG temperature, each from its own control unit.

@@ -41,9 +41,11 @@ class ElmLogTest {
 }
 
 class ElmLogVinTest {
-    @Test fun maskVin() = kotlin.test.assertEquals("WVWZZZ1KZB*******", ElmLog.maskVin("WVWZZZ1KZBP123456"))
+    @Test fun maskVin() {
+        kotlin.test.assertEquals("WVWZZZ1KZB*******", ElmLog.maskVin("WVWZZZ1KZBP123456"))
+    }
 
-    @Test fun vinReplyIsNeverLogged() = kotlinx.coroutines.runBlocking {
+    @Test fun vinReplyIsNeverLogged(): Unit = kotlinx.coroutines.runBlocking {
         val log = ElmLog()
         LoggingElmIo(DemoElmIo(), log).exchange("0902")
         kotlin.test.assertEquals("(VIN hidden)", log.snapshot().last().text)

@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.obdgolf.BlockState
 import app.obdgolf.LinkState
 import app.obdgolf.ble.BleDevice
 import app.obdgolf.bt.PairedDevice
@@ -54,6 +55,7 @@ import androidx.compose.foundation.layout.FlowRow
 import app.obdgolf.core.SpeedUnit
 import app.obdgolf.core.TempUnit
 import app.obdgolf.core.Units
+import app.obdgolf.core.VagUnit
 import app.obdgolf.core.VehicleInfo
 import app.obdgolf.core.WifiAddress
 
@@ -110,7 +112,14 @@ fun DashboardScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
 }
 
 @Composable
-fun DetailsScreen(d: CarData, vehicle: VehicleInfo?, adapterLabel: String?) {
+fun DetailsScreen(
+    d: CarData,
+    vehicle: VehicleInfo?,
+    adapterLabel: String?,
+    measuring: Boolean = false,
+    block: BlockState = BlockState.Idle,
+    onReadBlock: (VagUnit, Int) -> Unit = { _, _ -> },
+) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -175,6 +184,7 @@ fun DetailsScreen(d: CarData, vehicle: VehicleInfo?, adapterLabel: String?) {
             }
             Text(s(Str.BRAND_DATA_HINT), color = C.Muted, fontSize = 12.sp)
         }
+        if (measuring) MeasuringBlockCard(block, onReadBlock)
     }
 }
 
@@ -419,7 +429,7 @@ private fun LanguagePicker(selected: Lang?, onSelect: (Lang?) -> Unit) = Card {
 
 /** Pill-style single choice row (adapter type, units). */
 @Composable
-private fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) = Row(
+internal fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) = Row(
     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Card).padding(4.dp),
     horizontalArrangement = Arrangement.spacedBy(4.dp),
 ) {
