@@ -159,3 +159,10 @@ class HeadUnitScreenshots : ScreenshotTest("head-unit-1024x600", Lang.PL, car = 
 
 @Config(qualifiers = "w1280dp-h720dp-land-mdpi")
 class WideHeadUnitScreenshots : ScreenshotTest("head-unit-1280x720", Lang.DE, car = true)
+
+/** Many 1024×600 / 1280×720 head units run at 240 dpi, which leaves much less room in dp. */
+@Config(qualifiers = "w683dp-h400dp-land-hdpi")
+class DenseHeadUnitScreenshots : ScreenshotTest("head-unit-1024x600-hdpi", Lang.TR, car = true)
+
+@Config(qualifiers = "w853dp-h480dp-land-hdpi")
+class DenseWideHeadUnitScreenshots : ScreenshotTest("head-unit-1280x720-hdpi", Lang.EN, car = true)
