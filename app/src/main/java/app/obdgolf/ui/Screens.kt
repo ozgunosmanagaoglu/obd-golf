@@ -221,6 +221,8 @@ fun ConnectScreen(
     onUnits: (Units) -> Unit,
     language: Lang?,
     onLanguage: (Lang?) -> Unit,
+    batteryUnrestricted: Boolean = true,
+    onOpenBattery: () -> Unit = {},
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -385,6 +387,18 @@ fun ConnectScreen(
                 Segmented(TempUnit.entries, units.temp, { it.label }) { onUnits(units.copy(temp = it)) }
                 Text(s(Str.PRESSURE), color = C.Muted, fontSize = 13.sp)
                 Segmented(PressureUnit.entries, units.pressure, { it.label }) { onUnits(units.copy(pressure = it)) }
+            }
+        }
+
+        SectionLabel(s(Str.BG_TITLE))
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(s(if (batteryUnrestricted) Str.BG_OK else Str.BG_HINT), color = C.Muted, fontSize = 13.sp)
+                if (!batteryUnrestricted) {
+                    OutlinedButton(onClick = onOpenBattery, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text(s(Str.BG_OPEN), color = C.Text)
+                    }
+                }
             }
         }
 

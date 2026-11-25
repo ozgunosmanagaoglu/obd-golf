@@ -141,6 +141,14 @@ enum class Str(val en: String) {
     MB_READING("Reading…"),
     MB_NO_ANSWER("No answer. This control unit or group may not exist in your car."),
     MB_VALUE("Value {0}"),
+    NOTIF_CHANNEL("Connection status"),
+    NOTIF_CONNECTING("Connecting to {0}…"),
+    NOTIF_CONNECTED("Connected to {0}. Live data and the drive log keep running."),
+    NOTIF_WAITING("Waiting for the car. It reconnects when the ignition is on."),
+    BG_TITLE("Running in the background"),
+    BG_HINT("Some phones (e.g. Xiaomi, Samsung) stop apps in the background to save battery. Set Revora's battery setting to \"No restrictions\" so the drive log keeps running with the screen off."),
+    BG_OK("Battery: no restrictions. Revora keeps running with the screen off."),
+    BG_OPEN("Open battery settings"),
 
     // Connection screen
     CONNECTED_WITH("Connected · {0}"),

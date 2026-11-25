@@ -142,6 +142,7 @@ class MainActivity : ComponentActivity() {
         // The user may come back from the settings page with the permission turned on.
         if (vm.permissionMissing.value) vm.setPermissionMissing(missingBluetoothPermissions().isNotEmpty())
         vm.refreshDevices()
+        vm.refreshBattery()
     }
 
     private fun missingBluetoothPermissions(): List<String> =
@@ -236,6 +237,7 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val bleStatus by vm.bleStatus.collectAsState()
     val units by vm.units.collectAsState()
     val language by vm.language.collectAsState()
+    val batteryUnrestricted by vm.batteryUnrestricted.collectAsState()
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -288,6 +290,8 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                         onUnits = vm::setUnits,
                         language = language,
                         onLanguage = vm::setLanguage,
+                        batteryUnrestricted = batteryUnrestricted,
+                        onOpenBattery = vm::openBatterySettings,
                     )
                 }
             }
