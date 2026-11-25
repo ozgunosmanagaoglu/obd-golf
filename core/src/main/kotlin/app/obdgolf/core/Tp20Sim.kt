@@ -2,10 +2,15 @@ package app.obdgolf.core
 
 /**
  * A pretend VW TP2.0 car behind an ELM327, for the demo and tests. Handles the adapter settings
- * the channel needs (ATH, ATCAF, ATSH, ATCRA) and answers measuring block reads of [units] from [blocks]:
+ * the channel needs (ATH, ATCAF, ATSH, ATCRA) and answers identification ([ident]) and measuring block reads of [units] from [blocks]:
  * unit address → group → the (type, a, b) bytes after "61 GG". Unknown groups get a negative reply.
  */
-class Tp20Sim(private val units: Set<Int>, private val blocks: (unit: Int, group: Int) -> IntArray?) {
+class Tp20Sim(
+    private val units: Set<Int>,
+    private val blocks: (unit: Int, group: Int) -> IntArray?,
+    /** Identification bytes after "5A 9B" for a unit, or null for a negative reply. */
+    private val ident: (unit: Int) -> IntArray? = { null },
+) {
     var raw = false
         private set
     var header = "7DF"
@@ -47,6 +52,7 @@ class Tp20Sim(private val units: Set<Int>, private val blocks: (unit: Int, group
                 val payload = bytes.drop(3)
                 val answer = when (payload.firstOrNull()) {
                     0x10 -> intArrayOf(0x50, 0x89)
+                    0x1A -> ident(unit)?.let { intArrayOf(0x5A, 0x9B) + it } ?: intArrayOf(0x7F, 0x1A, 0x31)
                     0x21 -> blocks(unit, payload[1])?.let { intArrayOf(0x61, payload[1]) + it } ?: intArrayOf(0x7F, 0x21, 0x31)
                     else -> intArrayOf(0x7F, payload.firstOrNull() ?: 0, 0x11)
                 }

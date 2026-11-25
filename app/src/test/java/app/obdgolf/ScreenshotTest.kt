@@ -11,6 +11,8 @@ import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
+import app.obdgolf.core.ControlUnit
+import app.obdgolf.core.UnitInfo
 import app.obdgolf.core.Dashboard
 import app.obdgolf.core.Metric
 import app.obdgolf.core.Preset
@@ -118,7 +120,14 @@ abstract class ScreenshotTest(private val device: String, private val lang: Lang
     @Test fun bigFont() = shot("1-font-1.3x", fontScale = 1.3f) { Dash(Preset.DIAGNOSTIC.dashboard) }
 
     @Test fun details() = shot("2-details") {
-        AppFrame(Tab.Details, {}) { DetailsScreen(data, vehicle, link.adapterVersion, measuring = true) }
+        AppFrame(Tab.Details, {}) { DetailsScreen(
+            data, vehicle, link.adapterVersion, measuring = true,
+            controlUnits = UnitsState.Done(listOf(
+                UnitInfo(ControlUnit.ENGINE, UnitInfo.Protocol.KWP2000, "03C906027BH", systemName = "1.4l R4/4V TFSI  0010"),
+                UnitInfo(ControlUnit.CENTRAL_ELECTRICS, UnitInfo.Protocol.UDS, "5K0937087AC", "0507",
+                    systemName = "BCM PQ35 H+3", coding = listOf(0x0E, 0x1A, 0x00, 0x07, 0x0F, 0x00, 0xC4, 0x20, 0x08, 0x06, 0x1F, 0x00)),
+            )),
+        ) }
     }
 
     @Test fun faults() = shot("3-faults") {

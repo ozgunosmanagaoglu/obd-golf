@@ -133,15 +133,22 @@ enum class VagUnit(val address: Int, val label: Str) {
 }
 
 /**
- * Reads one measuring block over TP2.0 with a plain ELM327: switches the adapter to raw CAN, opens a channel,
- * starts a KWP session, reads, disconnects and puts the adapter back into normal OBD mode.
- * The caller holds the adapter lock for the whole time.
+ * Talks KWP2000 to one control unit over TP2.0 with a plain ELM327: switches the adapter to raw CAN, opens a channel,
+ * starts a KWP session, runs the requests, disconnects and puts the adapter back into normal OBD mode.
+ * The caller holds the adapter lock for the whole time. Only read requests are sent.
  */
 internal class Tp20Channel(private val io: ElmIo, private val homeHeader: String = "7DF") {
     private suspend fun send(cmd: String, timeoutMs: Long = 1_000): String =
         try { io.exchange(cmd, timeoutMs) } catch (_: ElmTimeoutException) { "" }
 
-    suspend fun readBlock(unit: Int, group: Int): MeasuringBlock? {
+    suspend fun readBlock(unit: Int, group: Int): MeasuringBlock? =
+        inSession(unit) { request -> request(intArrayOf(0x21, group))?.let { MeasuringBlocks.parse(unit, group, it) } }
+
+    /** The reply to "1A 9B" (VW identification: part number, component name, coding), or null. */
+    suspend fun readIdentification(unit: Int): IntArray? =
+        inSession(unit) { request -> request(intArrayOf(0x1A, 0x9B))?.takeIf { it.firstOrNull() == 0x5A } }
+
+    private suspend fun <T> inSession(unit: Int, block: suspend (request: suspend (IntArray) -> IntArray?) -> T?): T? {
         try {
             // Raw CAN with ids shown; 200 ms between frames is plenty for a unit that answers.
             for (c in listOf("ATH1", "ATCAF0", "ATST32", "ATSH200", "ATCRA%03X".format(0x200 + unit))) send(c)
@@ -176,8 +183,7 @@ internal class Tp20Channel(private val io: ElmIo, private val homeHeader: String
 
             val session = request(intArrayOf(0x10, 0x89)) ?: return null
             if (session.firstOrNull() != 0x50) return null
-            val reply = request(intArrayOf(0x21, group)) ?: return null
-            return MeasuringBlocks.parse(unit, group, reply)
+            return block { p -> request(p) }
         } finally {
             send(Tp20.DISCONNECT, 300)
             for (c in listOf("ATCRA", "ATSH$homeHeader", "ATST32", "ATCAF1", "ATH0")) send(c)

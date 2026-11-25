@@ -255,5 +255,39 @@ class ObdSession(
         return lock.withLock { Tp20Channel(io, homeHeader).readBlock(unit, group) }
     }
 
+    /**
+     * Identification and coding of one VW group control unit, read only: UDS first (ReadDataByIdentifier),
+     * then KWP2000 over TP2.0 for older units. Holds the adapter meanwhile and leaves it in normal OBD mode.
+     * Null when the unit does not answer either way.
+     */
+    suspend fun readUnitInfo(unit: ControlUnit): UnitInfo? {
+        if (!supportsMeasuringBlocks) return null
+        return lock.withLock {
+            readUds(unit) ?: Tp20Channel(io, homeHeader).readIdentification(unit.address)?.let { UnitIdent.kwp(unit, it) }
+        }
+    }
+
+    private suspend fun readUds(unit: ControlUnit): UnitInfo? {
+        suspend fun send(cmd: String, timeoutMs: Long = 1_000) = try { io.exchange(cmd, timeoutMs) } catch (_: ElmTimeoutException) { "" }
+        val tx = "%03X".format(unit.udsTx)
+        val rx = "%03X".format(unit.udsRx)
+        try {
+            // Answers come from rx; long replies need flow control frames sent to tx (not to rx - 8, the ELM default).
+            for (c in listOf("ATSH$tx", "ATCRA$rx", "ATFCSH$tx", "ATFCSD300000", "ATFCSM1")) send(c)
+            suspend fun did(id: String) = UnitIdent.udsData(id, send("22$id"))
+            val part = did(UnitIdent.DID_PART) ?: return null
+            return UnitInfo(
+                unit, UnitInfo.Protocol.UDS,
+                partNumber = UnitIdent.ascii(part),
+                softwareVersion = UnitIdent.ascii(did(UnitIdent.DID_SOFTWARE)),
+                hardwareNumber = UnitIdent.ascii(did(UnitIdent.DID_HARDWARE)),
+                systemName = UnitIdent.ascii(did(UnitIdent.DID_NAME)),
+                coding = did(UnitIdent.DID_CODING)?.toList()?.takeIf { it.isNotEmpty() },
+            )
+        } finally {
+            for (c in listOf("ATFCSM0", "ATCRA", "ATSH$homeHeader")) send(c)
+        }
+    }
+
     fun close() = io.close()
 }

@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.obdgolf.BlockState
+import app.obdgolf.UnitsState
 import app.obdgolf.LinkState
 import app.obdgolf.ble.BleDevice
 import app.obdgolf.bt.PairedDevice
@@ -98,6 +99,8 @@ fun DetailsScreen(
     measuring: Boolean = false,
     block: BlockState = BlockState.Idle,
     onReadBlock: (VagUnit, Int) -> Unit = { _, _ -> },
+    controlUnits: UnitsState = UnitsState.Idle,
+    onReadUnits: () -> Unit = {},
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -163,7 +166,10 @@ fun DetailsScreen(
             }
             Text(s(Str.BRAND_DATA_HINT), color = C.Muted, fontSize = 12.sp)
         }
-        if (measuring) MeasuringBlockCard(block, onReadBlock)
+        if (measuring) {
+            MeasuringBlockCard(block, onReadBlock)
+            ControlUnitsCard(controlUnits, onReadUnits)
+        }
     }
 }
 

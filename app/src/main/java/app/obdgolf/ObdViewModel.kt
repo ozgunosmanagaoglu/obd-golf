@@ -14,6 +14,8 @@ import app.obdgolf.bt.BluetoothConnector
 import app.obdgolf.bt.BluetoothPermissionException
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
+import app.obdgolf.core.ControlUnit
+import app.obdgolf.core.UnitInfo
 import app.obdgolf.core.DemoElmIo
 import app.obdgolf.core.Drive
 import app.obdgolf.core.DriveRecorder
@@ -66,6 +68,13 @@ sealed interface BlockState {
     data class Ready(val block: MeasuringBlock) : BlockState
     data object NoAnswer : BlockState
     data class Error(val message: Msg) : BlockState
+}
+
+/** Identification and coding of the car's control units (Faz 4d, read only). */
+sealed interface UnitsState {
+    data object Idle : UnitsState
+    data class Reading(val current: ControlUnit, val found: List<UnitInfo>) : UnitsState
+    data class Done(val found: List<UnitInfo>) : UnitsState
 }
 
 sealed interface FaultState {
@@ -187,6 +196,32 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _block = MutableStateFlow<BlockState>(BlockState.Idle)
     val block: StateFlow<BlockState> = _block.asStateFlow()
+
+    private val _controlUnits = MutableStateFlow<UnitsState>(UnitsState.Idle)
+    val controlUnits: StateFlow<UnitsState> = _controlUnits.asStateFlow()
+
+    /** Reads every known control unit one after another; each result also goes into the adapter log. */
+    fun readUnits() {
+        val s = session.takeIf { _link.value is LinkState.Connected && _measuring.value } ?: return
+        if (_controlUnits.value is UnitsState.Reading) return
+        viewModelScope.launch {
+            val found = mutableListOf<UnitInfo>()
+            log.note("Reading control units (read only)")
+            for (u in ControlUnit.entries) {
+                _controlUnits.value = UnitsState.Reading(u, found.toList())
+                val info = try {
+                    s.readUnitInfo(u)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    log.add(ElmLog.Kind.ERROR, "Unit ${u.code}: ${e.message ?: e.javaClass.simpleName}")
+                    null
+                }
+                info?.let { found += it; log.note(it.logLine()) }
+            }
+            _controlUnits.value = UnitsState.Done(found)
+        }
+    }
 
     fun readBlock(unit: VagUnit, group: Int) {
         val s = session.takeIf { _link.value is LinkState.Connected && _measuring.value } ?: return
@@ -453,6 +488,7 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
         _faults.value = FaultState.Idle
         _measuring.value = false
         _block.value = BlockState.Idle
+        _controlUnits.value = UnitsState.Idle
     }
 
     private fun startDemo() = start(DEMO) { DemoElmIo() }
