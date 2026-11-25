@@ -31,6 +31,8 @@ Standart OBD (mod 01): devir, hız, su sıcaklığı, emme sıcaklığı, dış 
 
 Bağlanınca uygulama arabanın desteklediği PID listesini (0100, 0120, 0140…) okur ve sadece onları sorar. Yakıt seviyesi, yakıt düzeltmeleri, MAF, manifold basıncı, ateşleme avansı, katalizör ve yağ sıcaklığı, yakıt tüketimi gibi 30'a yakın ek standart veri, araba destekliyorsa **Veriler** sekmesinde sırayla gösterilir. VIN (mod 09) okunur ve marka ile model yılı çıkarılır. Paylaşılan günlükte VIN gizlenir.
 
+Birimler **Bağlantı → Birimler** bölümünden seçilir: km/h·km ya da mph·mil, °C ya da °F, kPa, bar ya da psi. İlk açılışta telefonun ülkesine göre seçilir (ABD: mph, °F, psi; İngiltere: mph, °C, psi). Uygulama içinde her şey metrik tutulur, sadece gösterim çevrilir.
+
 ## Google Play paketi
 
 Play paketi (`revora.aab`) sadece yükleme anahtarı GitHub Secrets'a eklendiğinde derlenir: `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_KEYSTORE_PASSWORD`, `UPLOAD_KEY_ALIAS`, `UPLOAD_KEY_PASSWORD`.

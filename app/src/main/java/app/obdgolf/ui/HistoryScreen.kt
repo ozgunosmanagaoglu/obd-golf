@@ -83,7 +83,7 @@ fun HistoryScreen(drives: List<Drive>, onDelete: (Drive) -> Unit) {
         item {
             val real = drives.filterNot { it.demo }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SummaryTile("TOPLAM", "%.0f".format(real.sumOf { it.distanceKm }), "km", Modifier.weight(1f))
+                SummaryTile("TOPLAM", "%.0f".format(LocalUnits.current.distance(real.sumOf { it.distanceKm })), LocalUnits.current.distanceUnit, Modifier.weight(1f))
                 SummaryTile("SÜRÜŞ", real.size.toString(), "", Modifier.weight(1f))
                 SummaryTile("SÜRE", duration(real.sumOf { it.durationSec }), "", Modifier.weight(1f))
             }
@@ -134,11 +134,11 @@ private fun DriveCard(d: Drive, onClick: () -> Unit) {
             if (d.demo) Text("DEMO", color = Color(0xFFFF8A95), fontFamily = Sora, fontSize = 10.sp, letterSpacing = 1.5.sp,
                 modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFF3A0A10)).padding(horizontal = 8.dp, vertical = 3.dp))
         }
-        Sparkline(d.samples.map { it.speedKmh.toFloat() }, Color(0xFFE3001B), Modifier.fillMaxWidth().height(36.dp))
+        Sparkline(d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, Color(0xFFE3001B), Modifier.fillMaxWidth().height(36.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Stat("%.1f km".format(d.distanceKm))
+            Stat("%.1f ${LocalUnits.current.distanceUnit}".format(LocalUnits.current.distance(d.distanceKm)))
             Stat(duration(d.durationSec))
-            Stat("maks ${d.maxSpeedKmh.toInt()} km/h")
+            Stat("maks ${LocalUnits.current.speed(d.maxSpeedKmh)!!.toInt()} ${LocalUnits.current.speedUnit}")
         }
     }
 }
@@ -168,13 +168,13 @@ private fun DriveDetail(d: Drive, onBack: () -> Unit, onDelete: () -> Unit) {
             )
         }
         val tiles = listOf(
-            Triple("MESAFE", "%.1f".format(d.distanceKm), "km"),
+            Triple("MESAFE", "%.1f".format(LocalUnits.current.distance(d.distanceKm)), LocalUnits.current.distanceUnit),
             Triple("SÜRE", duration(d.durationSec), ""),
-            Triple("ORT. HIZ", d.avgMovingSpeedKmh.toInt().toString(), "km/h"),
-            Triple("MAKS HIZ", d.maxSpeedKmh.toInt().toString(), "km/h"),
+            Triple("ORT. HIZ", LocalUnits.current.speed(d.avgMovingSpeedKmh)!!.toInt().toString(), LocalUnits.current.speedUnit),
+            Triple("MAKS HIZ", LocalUnits.current.speed(d.maxSpeedKmh)!!.toInt().toString(), LocalUnits.current.speedUnit),
             Triple("MAKS DEVİR", d.maxRpm.toInt().toString(), "rpm"),
             Triple("RÖLANTİ", duration(d.idleSec.toLong()), ""),
-            Triple("MAKS SU", d.maxCoolantC?.toInt()?.toString() ?: "—", "°C"),
+            Triple("MAKS SU", LocalUnits.current.temp(d.maxCoolantC)?.toInt()?.toString() ?: "—", LocalUnits.current.tempUnit),
             Triple("MİN AKÜ", d.minBatteryV?.let { "%.1f".format(it) } ?: "—", "V"),
         )
         tiles.chunked(2).forEach { row ->
@@ -182,9 +182,9 @@ private fun DriveDetail(d: Drive, onBack: () -> Unit, onDelete: () -> Unit) {
                 row.forEach { (l, v, u) -> SummaryTile(l, v, if (v == "—") "" else u, Modifier.weight(1f)) }
             }
         }
-        ChartCard("HIZ · km/h", d.samples.map { it.speedKmh.toFloat() }, Color(0xFFE3001B))
+        ChartCard("HIZ · ${LocalUnits.current.speedUnit}", d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, Color(0xFFE3001B))
         ChartCard("DEVİR · rpm", d.samples.map { it.rpm.toFloat() }, C.Text)
-        ChartCard("SU SICAKLIĞI · °C", d.samples.mapNotNull { it.coolantC?.toFloat() }, Blue)
+        ChartCard("SU SICAKLIĞI · ${LocalUnits.current.tempUnit}", d.samples.mapNotNull { LocalUnits.current.temp(it.coolantC?.toDouble())?.toFloat() }, Blue)
     }
     if (confirm) {
         AlertDialog(

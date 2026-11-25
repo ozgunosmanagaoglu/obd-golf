@@ -44,6 +44,10 @@ import app.obdgolf.LinkState
 import app.obdgolf.ble.BleDevice
 import app.obdgolf.bt.PairedDevice
 import app.obdgolf.core.CarData
+import app.obdgolf.core.PressureUnit
+import app.obdgolf.core.SpeedUnit
+import app.obdgolf.core.TempUnit
+import app.obdgolf.core.Units
 import app.obdgolf.core.VehicleInfo
 import app.obdgolf.core.WifiAddress
 
@@ -87,13 +91,13 @@ fun DashboardScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
         Header(link, onLinkClick)
         RevGauge(d.rpm, d.speedKmh, diameter = 300.dp, stroke = 16.dp, big = 64.sp, small = 13.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ValueTile("Su sıcaklığı", d.coolantC.fmt(), "°C", Modifier.weight(1f),
+            ValueTile("Su sıcaklığı", LocalUnits.current.temp(d.coolantC).fmt(), LocalUnits.current.tempUnit, Modifier.weight(1f),
                 bar = ((d.coolantC ?: 0.0) / 130).toFloat(), barColor = coolantColor(d.coolantC))
             ValueTile("Akü voltajı", d.batteryV.fmt(1), "V", Modifier.weight(1f),
                 bar = (((d.batteryV ?: 11.0) - 11) / 4).toFloat(), barColor = voltageColor(d.batteryV))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ValueTile("Emme sıcaklığı", d.intakeC.fmt(), "°C", Modifier.weight(1f))
+            ValueTile("Emme sıcaklığı", LocalUnits.current.temp(d.intakeC).fmt(), LocalUnits.current.tempUnit, Modifier.weight(1f))
             ValueTile("Motor yükü", d.loadPct.fmt(), "%", Modifier.weight(1f))
         }
     }
@@ -127,10 +131,10 @@ fun DetailsScreen(d: CarData, vehicle: VehicleInfo?, adapterLabel: String?) {
         Card {
             listOf(
                 "Devir" to "${d.rpm.fmt()} rpm",
-                "Hız" to "${d.speedKmh.fmt()} km/h",
-                "Su sıcaklığı" to "${d.coolantC.fmt()} °C",
-                "Emme sıcaklığı" to "${d.intakeC.fmt()} °C",
-                "Dış sıcaklık" to "${d.ambientC.fmt()} °C",
+                "Hız" to "${LocalUnits.current.speed(d.speedKmh).fmt()} ${LocalUnits.current.speedUnit}",
+                "Su sıcaklığı" to "${LocalUnits.current.temp(d.coolantC).fmt()} ${LocalUnits.current.tempUnit}",
+                "Emme sıcaklığı" to "${LocalUnits.current.temp(d.intakeC).fmt()} ${LocalUnits.current.tempUnit}",
+                "Dış sıcaklık" to "${LocalUnits.current.temp(d.ambientC).fmt()} ${LocalUnits.current.tempUnit}",
                 "Motor yükü" to "${d.loadPct.fmt()} %",
                 "Gaz pedalı" to "${d.throttlePct.fmt()} %",
                 "Akü voltajı" to "${d.batteryV.fmt(1)} V",
@@ -146,7 +150,8 @@ fun DetailsScreen(d: CarData, vehicle: VehicleInfo?, adapterLabel: String?) {
             Card {
                 extras.forEachIndexed { i, (pid, value) ->
                     if (i > 0) HorizontalDivider(color = C.Divider)
-                    RowItem(pid.label, "${value.fmt(pid.decimals)} ${pid.unit}")
+                    val (v, unit) = LocalUnits.current.convert(value, pid.unit)
+                    RowItem(pid.label, "${v.fmt(LocalUnits.current.decimalsFor(pid.unit, pid.decimals))} $unit")
                 }
             }
             Text("Bu değerler sırayla okunur, birkaç saniyede bir yenilenir.", color = C.Muted, fontSize = 12.sp)
@@ -183,6 +188,8 @@ fun ConnectScreen(
     onRefresh: () -> Unit,
     onAutoConnect: (Boolean) -> Unit,
     onDemo: (Boolean) -> Unit,
+    units: Units,
+    onUnits: (Units) -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -223,24 +230,7 @@ fun ConnectScreen(
 
         // One adapter type at a time keeps the screen short; most people own one adapter.
         var type by rememberSaveable { mutableStateOf(AdapterType.CLASSIC) }
-        Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Card).padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            AdapterType.entries.forEach { t ->
-                val selected = t == type
-                Text(
-                    t.label,
-                    color = if (selected) Color.White else C.Muted,
-                    fontSize = 13.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                        .background(if (selected) C.Red else Color.Transparent)
-                        .clickable { type = t }.padding(vertical = 12.dp),
-                )
-            }
-        }
+        Segmented(AdapterType.entries, type, { it.label }) { type = it }
         Text(type.hint, color = C.Muted, fontSize = 12.sp)
 
         when (type) {
@@ -354,6 +344,18 @@ fun ConnectScreen(
             ToggleRow("Demo modu (araba olmadan)", demo, onDemo)
         }
 
+        SectionLabel("Birimler")
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Hız ve mesafe", color = C.Muted, fontSize = 13.sp)
+                Segmented(SpeedUnit.entries, units.speed, { it.label }) { onUnits(units.copy(speed = it)) }
+                Text("Sıcaklık", color = C.Muted, fontSize = 13.sp)
+                Segmented(TempUnit.entries, units.temp, { it.label }) { onUnits(units.copy(temp = it)) }
+                Text("Basınç", color = C.Muted, fontSize = 13.sp)
+                Segmented(PressureUnit.entries, units.pressure, { it.label }) { onUnits(units.copy(pressure = it)) }
+            }
+        }
+
         SectionLabel("Adaptör günlüğü")
         Card {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -366,6 +368,27 @@ fun ConnectScreen(
                 }
             }
         }
+    }
+}
+
+/** Pill-style single choice row (adapter type, units). */
+@Composable
+private fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) = Row(
+    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Card).padding(4.dp),
+    horizontalArrangement = Arrangement.spacedBy(4.dp),
+) {
+    options.forEach { t ->
+        val on = t == selected
+        Text(
+            label(t),
+            color = if (on) Color.White else C.Muted,
+            fontSize = 13.sp,
+            fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                .background(if (on) C.Red else Color.Transparent)
+                .clickable { onSelect(t) }.padding(vertical = 12.dp),
+        )
     }
 }
 
@@ -390,7 +413,7 @@ fun CarScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
             Badge(Brand.BADGE)
             Text(Brand.TITLE, color = C.Text, fontWeight = FontWeight.Bold, fontSize = 20.sp,
                 modifier = Modifier.padding(start = 12.dp).weight(1f))
-            Text("Dış ${d.ambientC.fmt()} °C", color = C.Muted, fontSize = 15.sp, modifier = Modifier.padding(end = 16.dp))
+            Text("Dış ${LocalUnits.current.temp(d.ambientC).fmt()} ${LocalUnits.current.tempUnit}", color = C.Muted, fontSize = 15.sp, modifier = Modifier.padding(end = 16.dp))
             LinkChip(link, onLinkClick)
         }
         Spacer(Modifier.padding(6.dp))
@@ -400,12 +423,12 @@ fun CarScreen(d: CarData, link: LinkState, onLinkClick: () -> Unit) {
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 val tiles = listOf(
-                    Triple("Su sıcaklığı", d.coolantC.fmt(), "°C"),
+                    Triple("Su sıcaklığı", LocalUnits.current.temp(d.coolantC).fmt(), LocalUnits.current.tempUnit),
                     Triple("Akü", d.batteryV.fmt(1), "V"),
                     Triple("Motor yükü", d.loadPct.fmt(), "%"),
-                    Triple("Emme sıcaklığı", d.intakeC.fmt(), "°C"),
+                    Triple("Emme sıcaklığı", LocalUnits.current.temp(d.intakeC).fmt(), LocalUnits.current.tempUnit),
                     Triple("Gaz pedalı", d.throttlePct.fmt(), "%"),
-                    Triple("Dış sıcaklık", d.ambientC.fmt(), "°C"),
+                    Triple("Dış sıcaklık", LocalUnits.current.temp(d.ambientC).fmt(), LocalUnits.current.tempUnit),
                 )
                 tiles.chunked(2).forEach { pair ->
                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
