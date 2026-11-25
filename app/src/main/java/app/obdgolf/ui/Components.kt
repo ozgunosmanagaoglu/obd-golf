@@ -63,8 +63,8 @@ fun RevGauge(rpm: Double?, speed: Double?, diameter: Dp, stroke: Dp, big: TextUn
             Text("rpm", color = C.Muted, fontSize = small)
         }
         Column(Modifier.align(Alignment.BottomCenter), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(speed.fmt(), color = C.Text, fontSize = big * 0.62f, fontWeight = FontWeight.Bold)
-            Text("km/h", color = C.Muted, fontSize = small)
+            Text(LocalUnits.current.speed(speed).fmt(), color = C.Text, fontSize = big * 0.62f, fontWeight = FontWeight.Bold)
+            Text(LocalUnits.current.speedUnit, color = C.Muted, fontSize = small)
         }
     }
 }

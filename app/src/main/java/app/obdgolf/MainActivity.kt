@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +55,7 @@ import app.obdgolf.ui.DetailsScreen
 import app.obdgolf.ui.FaultScreen
 import app.obdgolf.ui.SplashScreen
 import app.obdgolf.ui.HistoryScreen
+import app.obdgolf.ui.LocalUnits
 import app.obdgolf.ui.ObdTheme
 
 class MainActivity : ComponentActivity() {
@@ -222,9 +224,11 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
     val bleDevices by vm.bleDevices.collectAsState()
     val bleScanning by vm.bleScanning.collectAsState()
     val bleStatus by vm.bleStatus.collectAsState()
+    val units by vm.units.collectAsState()
     var tab by rememberSaveable { mutableStateOf(homeTab) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    CompositionLocalProvider(LocalUnits provides units) {
     Box(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding().navigationBarsPadding()) {
         if (landscape && tab == Tab.Dashboard) {
             CarScreen(data, link) { tab = Tab.Connect }
@@ -264,6 +268,8 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                         onRefresh = vm::refreshDevices,
                         onAutoConnect = vm::setAutoConnect,
                         onDemo = { vm.setDemo(it); if (it) tab = homeTab },
+                        units = units,
+                        onUnits = vm::setUnits,
                     )
                 }
             }
@@ -287,5 +293,6 @@ private fun MainContent(vm: ObdViewModel, onConnect: (PairedDevice) -> Unit, onG
                 }
             }
         }
+    }
     }
 }

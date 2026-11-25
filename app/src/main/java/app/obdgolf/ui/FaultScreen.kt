@@ -199,11 +199,11 @@ private fun FreezeCard(f: FreezeFrame) {
     Card {
         listOf(
             "Devir" to "${f.rpm.fmt()} rpm",
-            "Hız" to "${f.speedKmh.fmt()} km/h",
-            "Su sıcaklığı" to "${f.coolantC.fmt()} °C",
+            "Hız" to "${LocalUnits.current.speed(f.speedKmh).fmt()} ${LocalUnits.current.speedUnit}",
+            "Su sıcaklığı" to "${LocalUnits.current.temp(f.coolantC).fmt()} ${LocalUnits.current.tempUnit}",
             "Motor yükü" to "${f.loadPct.fmt()} %",
             "Gaz pedalı" to "${f.throttlePct.fmt()} %",
-            "Emme sıcaklığı" to "${f.intakeC.fmt()} °C",
+            "Emme sıcaklığı" to "${LocalUnits.current.temp(f.intakeC).fmt()} ${LocalUnits.current.tempUnit}",
         ).forEachIndexed { i, (l, v) ->
             if (i > 0) HorizontalDivider(color = C.Divider)
             RowItem(l, if (v.startsWith("—")) "—" else v)

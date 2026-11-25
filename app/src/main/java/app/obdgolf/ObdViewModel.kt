@@ -22,12 +22,17 @@ import app.obdgolf.core.ElmLog
 import app.obdgolf.core.LoggingElmIo
 import app.obdgolf.core.FaultReport
 import app.obdgolf.core.ObdSession
+import app.obdgolf.core.PressureUnit
+import app.obdgolf.core.SpeedUnit
+import app.obdgolf.core.TempUnit
+import app.obdgolf.core.Units
 import app.obdgolf.core.VehicleInfo
 import app.obdgolf.core.WifiAddress
 import app.obdgolf.wifi.WifiConnector
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,6 +91,26 @@ class ObdViewModel(app: Application) : AndroidViewModel(app) {
     private val _bleStatus = MutableStateFlow<String?>(null)
     val bleStatus: StateFlow<String?> = _bleStatus.asStateFlow()
     private var scanJob: Job? = null
+
+    /** Display units; first launch picks them from the phone's country (mph/°F in the US, mph in the UK). */
+    private val _units = MutableStateFlow(loadUnits())
+    val units: StateFlow<Units> = _units.asStateFlow()
+
+    private fun loadUnits(): Units {
+        val d = Units.defaultFor(Locale.getDefault().country)
+        fun <E : Enum<E>> pick(key: String, all: List<E>, def: E) = all.firstOrNull { it.name == prefs.getString(key, null) } ?: def
+        return Units(
+            speed = pick("unit_speed", SpeedUnit.entries, d.speed),
+            temp = pick("unit_temp", TempUnit.entries, d.temp),
+            pressure = pick("unit_pressure", PressureUnit.entries, d.pressure),
+        )
+    }
+
+    fun setUnits(u: Units) {
+        _units.value = u
+        prefs.edit().putString("unit_speed", u.speed.name).putString("unit_temp", u.temp.name)
+            .putString("unit_pressure", u.pressure.name).apply()
+    }
 
     private val _demo = MutableStateFlow(prefs.getBoolean("demo", false))
     val demo: StateFlow<Boolean> = _demo.asStateFlow()
