@@ -22,7 +22,9 @@ import app.obdgolf.ui.ThemeMode
 import kotlin.math.sin
 import app.obdgolf.core.Dtc
 import app.obdgolf.core.DtcKind
+import app.obdgolf.core.AdapterCheck
 import app.obdgolf.core.FaultReport
+import app.obdgolf.core.Readiness
 import app.obdgolf.core.Lang
 import app.obdgolf.core.MakerGroup
 import app.obdgolf.core.MilStatus
@@ -119,6 +121,17 @@ abstract class ScreenshotTest(private val device: String, private val lang: Lang
     @Test fun contrast() = shot("1-theme-high-contrast", ThemeMode.HIGH_CONTRAST) { Dash(Preset.SPORT.dashboard) }
     @Test fun bigFont() = shot("1-font-1.3x", fontScale = 1.3f) { Dash(Preset.DIAGNOSTIC.dashboard) }
 
+    @Test fun detailsCloneAdapter() = shot("2-details-clone-adapter") {
+        AppFrame(Tab.Details, {}) { DetailsScreen(
+            data, vehicle, "ELM327 v1.5 · CAN 11 bit 500k",
+            adapterCheck = AdapterCheck(
+                AdapterCheck.Verdict.LIMITED,
+                listOf(AdapterCheck.Reason.FAKE_V15, AdapterCheck.Reason.MISSING_COMMANDS),
+                listOf("ATFCSM0"),
+            ),
+        ) }
+    }
+
     @Test fun details() = shot("2-details") {
         AppFrame(Tab.Details, {}) { DetailsScreen(
             data, vehicle, link.adapterVersion, measuring = true,
@@ -136,6 +149,12 @@ abstract class ScreenshotTest(private val device: String, private val lang: Lang
             listOf(Dtc("P0299", DtcKind.STORED), Dtc("P0301", DtcKind.STORED), Dtc("P0171", DtcKind.PENDING)),
             null, 0L,
         )
+        AppFrame(Tab.Faults, {}) { FaultScreen(FaultState.Ready(report), link, {}, {}, {}) }
+    }
+
+    @Test fun faultsReadiness() = shot("3-faults-readiness") {
+        // Codes just cleared: catalyst, EVAP and O2 sensor tests not complete yet.
+        val report = FaultReport(MilStatus(milOn = false, dtcCount = 0), emptyList(), null, 0L, Readiness.parse("4101000765 25"))
         AppFrame(Tab.Faults, {}) { FaultScreen(FaultState.Ready(report), link, {}, {}, {}) }
     }
 

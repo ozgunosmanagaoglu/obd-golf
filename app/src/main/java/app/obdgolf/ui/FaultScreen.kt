@@ -41,6 +41,7 @@ import app.obdgolf.core.DtcKind
 import app.obdgolf.core.DtcSeverity
 import app.obdgolf.core.FaultReport
 import app.obdgolf.core.FreezeFrame
+import app.obdgolf.core.Readiness
 import app.obdgolf.core.Str
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -98,6 +99,7 @@ fun FaultScreen(state: FaultState, link: LinkState, onRead: () -> Unit, onClear:
             is FaultState.Ready -> {
                 if (state.cleared) Text(s(Str.CODES_CLEARED), color = C.Green, fontSize = 14.sp)
                 Codes(state.report)
+                state.report.readiness?.takeIf { it.monitors.isNotEmpty() }?.let { ReadinessCard(it) }
             }
         }
 
@@ -166,6 +168,36 @@ private fun Codes(report: FaultReport) {
         }
     }
     report.freezeFrame?.let { FreezeCard(it) }
+}
+
+/** Emission self-tests: which are done, and that "not yet" is normal after clearing codes. */
+@Composable
+private fun ReadinessCard(r: Readiness) {
+    SectionLabel(s(Str.READINESS))
+    Text(
+        if (r.allComplete) s(Str.READINESS_ALL_DONE) else s(Str.READINESS_SUMMARY, r.completeCount, r.monitors.size),
+        color = if (r.allComplete) C.Green else C.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+    )
+    Card {
+        // Not-yet ones first: they are what the user came to see.
+        r.monitors.sortedBy { it.complete }.forEachIndexed { i, m ->
+            if (i > 0) HorizontalDivider(color = C.Divider)
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(s(m.monitor.label), color = C.Text, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                val color = if (m.complete) C.Green else C.Amber
+                Text(
+                    s(if (m.complete) Str.MON_COMPLETE else Str.MON_INCOMPLETE), color = color, fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = 0.15f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
+        }
+    }
+    if (!r.allComplete) Hint(s(Str.READINESS_HINT))
 }
 
 @Composable

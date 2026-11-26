@@ -94,7 +94,7 @@ class ObdSession(
         supported = discoverSupported(SupportedPids().with(0x00, base))
 
         val protocol = runCatching { ObdProtocol.fromDpn(ask("ATDPN")) }.getOrNull()
-        adapter = AdapterInfo(elmVersion = elm, stnId = stn, protocol = protocol)
+        adapter = AdapterInfo(elmVersion = elm, stnId = stn, protocol = protocol).let { it.copy(check = checkAdapter(it)) }
         vehicle = runCatching { Vin.parse(ask("0902", timeoutMs = 3_000)) }.getOrNull()?.let { Vin.decode(it) }
         if (protocol?.isCan11 == true) {
             try {
@@ -128,6 +128,14 @@ class ObdSession(
         if (adapter.protocol?.isCan11 != true) return emptyList()
         return profile.values.filter { readBrand(it) != null }
     }
+
+    /** Asks the adapter a few harmless commands to see how far it can be trusted (see [AdapterCheck]). */
+    private suspend fun checkAdapter(info: AdapterInfo): AdapterCheck? = runCatching {
+        suspend fun quiet(cmd: String) = try { ask(cmd, timeoutMs = 1_000) } catch (_: ElmTimeoutException) { null }
+        val bogus = quiet(AdapterCheck.BOGUS)
+        val replies = buildMap { for (cmd in AdapterCheck.PROBES) quiet(cmd)?.let { put(cmd, it) } }
+        AdapterCheck.judge(info, replies, bogus)
+    }.getOrNull()
 
     /** ATZ, tried twice: some clones drop the first command after power-up. */
     private suspend fun resetAdapter(): String {
@@ -219,7 +227,8 @@ class ObdSession(
     }
 
     private suspend fun readFaultsHere(nowMs: Long): FaultReport {
-        val mil = DtcParser.parseMil(ask("0101"))
+        val status = ask("0101")
+        val mil = DtcParser.parseMil(status)
         val codes = mutableListOf<Dtc>()
         for ((mode, kind) in listOf("03" to DtcKind.STORED, "07" to DtcKind.PENDING, "0A" to DtcKind.PERMANENT)) {
             val raw = runCatching { ask(mode, timeoutMs = 5_000) }.getOrDefault("")
@@ -234,7 +243,7 @@ class ObdSession(
                 loadPct = f(Pid.ENGINE_LOAD), throttlePct = f(Pid.THROTTLE), intakeC = f(Pid.INTAKE_TEMP),
             )
         }
-        return FaultReport(mil, codes, freeze, nowMs)
+        return FaultReport(mil, codes, freeze, nowMs, Readiness.parse(status))
     }
 
     /** Mode 04: clears codes and freeze frame and resets the readiness tests. True if the car confirmed. */

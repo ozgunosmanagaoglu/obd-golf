@@ -45,6 +45,7 @@ import app.obdgolf.UnitsState
 import app.obdgolf.LinkState
 import app.obdgolf.ble.BleDevice
 import app.obdgolf.bt.PairedDevice
+import app.obdgolf.core.AdapterCheck
 import app.obdgolf.core.CarData
 import app.obdgolf.DEMO
 import app.obdgolf.core.Lang
@@ -101,6 +102,7 @@ fun DetailsScreen(
     onReadBlock: (VagUnit, Int) -> Unit = { _, _ -> },
     controlUnits: UnitsState = UnitsState.Idle,
     onReadUnits: () -> Unit = {},
+    adapterCheck: AdapterCheck? = null,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -124,6 +126,7 @@ fun DetailsScreen(
                 }
             }
         }
+        adapterCheck?.let { AdapterCheckCard(it) }
         SectionLabel(s(Str.STANDARD_OBD))
         Card {
             listOf(
