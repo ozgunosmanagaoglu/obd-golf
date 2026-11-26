@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -23,6 +26,7 @@ import kotlin.math.sin
 import app.obdgolf.core.Dtc
 import app.obdgolf.core.DtcKind
 import app.obdgolf.core.AdapterCheck
+import app.obdgolf.core.DriveAnalysis
 import app.obdgolf.core.FaultReport
 import app.obdgolf.core.Readiness
 import app.obdgolf.core.Lang
@@ -37,6 +41,7 @@ import app.obdgolf.ui.C
 import app.obdgolf.ui.ConnectScreen
 import app.obdgolf.ui.DashboardScreen
 import app.obdgolf.ui.DetailsScreen
+import app.obdgolf.ui.DriveAnalysisCard
 import app.obdgolf.ui.FaultScreen
 import app.obdgolf.ui.LocalStrings
 import app.obdgolf.ui.LocalUnits
@@ -156,6 +161,20 @@ abstract class ScreenshotTest(private val device: String, private val lang: Lang
         // Codes just cleared: catalyst, EVAP and O2 sensor tests not complete yet.
         val report = FaultReport(MilStatus(milOn = false, dtcCount = 0), emptyList(), null, 0L, Readiness.parse("4101000765 25"))
         AppFrame(Tab.Faults, {}) { FaultScreen(FaultState.Ready(report), link, {}, {}, {}) }
+    }
+
+    @Test fun driveAnalysis() = shot("5-drive-analysis") {
+        // A cold start with revs, two hard stops, and a thermostat that never let the engine warm up.
+        val a = DriveAnalysis(
+            score = 72,
+            findings = listOf(
+                DriveAnalysis.Finding(DriveAnalysis.Kind.NEVER_WARM, 18, value = 63.0),
+                DriveAnalysis.Finding(DriveAnalysis.Kind.HARSH_BRAKE, 2),
+                DriveAnalysis.Finding(DriveAnalysis.Kind.COLD_REVS, 24),
+                DriveAnalysis.Finding(DriveAnalysis.Kind.LONG_IDLE, 4, percent = 22),
+            ),
+        )
+        Column(Modifier.padding(20.dp)) { DriveAnalysisCard(a) }
     }
 
     @Test fun connect() = shot("4-connect") {
