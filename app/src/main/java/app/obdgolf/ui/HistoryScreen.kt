@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.text.format.DateFormat
 import app.obdgolf.core.Drive
+import app.obdgolf.core.DriveAnalysis
 import app.obdgolf.core.Str
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -146,6 +148,7 @@ private fun DriveCard(d: Drive, onClick: () -> Unit) {
                 "${timeFmt.format(Date(d.startMs))} – ${timeFmt.format(Date(d.endMs))}",
                 color = C.Text, fontFamily = Sora, fontSize = 15.sp, modifier = Modifier.weight(1f),
             )
+            ScoreBadge(remember(d) { DriveAnalysis.of(d).score })
             if (d.demo) Text("DEMO", color = Color(0xFFFF8A95), fontFamily = Sora, fontSize = 10.sp, letterSpacing = 1.5.sp,
                 modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFF3A0A10)).padding(horizontal = 8.dp, vertical = 3.dp))
         }
@@ -198,6 +201,7 @@ private fun DriveDetail(d: Drive, onBack: () -> Unit, onDelete: () -> Unit) {
                 row.forEach { (l, v, u) -> SummaryTile(l, v, if (v == "—") "" else u, Modifier.weight(1f)) }
             }
         }
+        DriveAnalysisCard(remember(d) { DriveAnalysis.of(d) })
         ChartCard("${caps(Str.SPEED)} · ${LocalUnits.current.speedUnit}", d.samples.map { LocalUnits.current.speed(it.speedKmh.toDouble())!!.toFloat() }, C.Red)
         ChartCard("${caps(Str.RPM)} · rpm", d.samples.map { it.rpm.toFloat() }, C.Text)
         ChartCard("${caps(Str.COOLANT_TEMP)} · ${LocalUnits.current.tempUnit}", d.samples.mapNotNull { LocalUnits.current.temp(it.coolantC?.toDouble())?.toFloat() }, Blue)
@@ -210,6 +214,58 @@ private fun DriveDetail(d: Drive, onBack: () -> Unit, onDelete: () -> Unit) {
             confirmButton = { TextButton(onClick = { confirm = false; onDelete() }) { Text(s(Str.DELETE), color = C.Alarm) } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text(s(Str.CANCEL)) } },
         )
+    }
+}
+
+private fun scoreColor(score: Int) = when {
+    score >= 85 -> C.Green
+    score >= 60 -> C.Amber
+    else -> C.Alarm
+}
+
+@Composable
+private fun ScoreBadge(score: Int) {
+    val color = scoreColor(score)
+    Text(
+        score.toString(), color = color, fontFamily = Sora, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+        modifier = Modifier.padding(end = 8.dp).clip(RoundedCornerShape(8.dp)).background(color.copy(alpha = 0.15f))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    )
+}
+
+/** Faz 5.6: the score and one plain sentence per finding, car problems first. */
+@Composable
+internal fun DriveAnalysisCard(a: DriveAnalysis) {
+    val units = LocalUnits.current
+    fun temp(c: Double?) = "${units.temp(c)?.toInt() ?: "—"} ${units.tempUnit}"
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Glass)
+            .border(1.dp, GlassLine, RoundedCornerShape(22.dp)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(caps(Str.DRIVE_ANALYSIS), color = Label, fontFamily = Sora, fontSize = 10.sp, letterSpacing = 2.sp)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(a.score.toString(), color = scoreColor(a.score), fontFamily = Sora, fontWeight = FontWeight.Light, fontSize = 40.sp)
+            Text(" / 100  ·  " + s(Str.DRIVE_SCORE), color = Label, fontFamily = Sora, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
+        }
+        a.findings.forEach { f ->
+            val text = when (f.kind) {
+                DriveAnalysis.Kind.LONG_IDLE -> s(f.kind.label, f.count, f.percent)
+                DriveAnalysis.Kind.OVERHEAT -> s(f.kind.label, temp(f.value))
+                DriveAnalysis.Kind.NEVER_WARM -> s(f.kind.label, f.count, temp(f.value))
+                DriveAnalysis.Kind.LOW_CHARGING -> s(f.kind.label, "%.1f V".format(f.value ?: 0.0))
+                else -> s(f.kind.label, f.count)
+            }
+            val dot = when {
+                f.kind.warning -> C.Alarm
+                f.kind == DriveAnalysis.Kind.SMOOTH -> C.Green
+                else -> C.Amber
+            }
+            Row(verticalAlignment = Alignment.Top) {
+                Box(Modifier.padding(top = 6.dp, end = 10.dp).size(8.dp).clip(RoundedCornerShape(4.dp)).background(dot))
+                Text(text, color = C.Text, fontFamily = Sora, fontSize = 14.sp, lineHeight = 20.sp)
+            }
+        }
     }
 }
 

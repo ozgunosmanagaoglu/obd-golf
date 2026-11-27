@@ -240,6 +240,16 @@ enum class Str(val en: String) {
     MON_BOOST("Boost pressure"),
     MON_EXHAUST_SENSOR("Exhaust gas sensor"),
     MON_PARTICULATE_FILTER("Particulate filter (DPF)"),
+    DRIVE_ANALYSIS("Drive analysis"),
+    DRIVE_SCORE("Drive score"),
+    DA_HARSH_BRAKE("Hard braking: {0}×. Looking further ahead saves brakes and fuel."),
+    DA_HARSH_ACCEL("Hard acceleration: {0}×."),
+    DA_COLD_REVS("Above 3000 rpm for {0} s while the engine was still cold. Let it warm up first."),
+    DA_LONG_IDLE("The engine idled for {0} min, {1}% of the drive."),
+    DA_OVERHEAT("Coolant reached {0}. Have the cooling system checked."),
+    DA_NEVER_WARM("After {0} min the engine was still only {1}. The thermostat may be stuck open."),
+    DA_LOW_CHARGING("Battery voltage fell to {0} with the engine running. Have the battery and alternator checked."),
+    DA_SMOOTH("Smooth driving: no hard braking or acceleration."),
 
     // Connection screen
     CONNECTED_WITH("Connected · {0}"),
